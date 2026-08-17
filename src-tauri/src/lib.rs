@@ -1,7 +1,7 @@
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
 mod app;
-mod desc;
+mod desktop;
 mod domain;
 mod infra;
 
