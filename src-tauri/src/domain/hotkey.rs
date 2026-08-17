@@ -1,0 +1,87 @@
+use std::path::PathBuf;
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum DomainError {
+    #[error("пустой ключ")]
+    EmptyKey,
+    #[error("No Modifier")]
+    NoModifier,
+}
+
+pub type ShortcutId = String;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Shortcut {
+    pub id: ShortcutId,
+    pub combo: Combo,
+    pub action: Action,
+    pub enabled: bool,
+}
+
+impl Shortcut {
+    pub fn new(combo: Combo, action: Action) -> Result<Self, DomainError> {
+        combo.validate()?;
+        Ok(Self {
+            id: combo.id(),
+            combo,
+            action,
+            enabled: true,
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Combo {
+    pub key: PhysicalKey,
+    pub mods: Mods,
+}
+
+impl Combo {
+    fn id(&self) -> String {
+        format!(
+            "{}|ctrl:{}|alt:{}|shift:{}|logo:{}",
+            self.key.0, self.mods.ctrl, self.mods.alt, self.mods.shift, self.mods.logo
+        )
+    }
+
+    pub fn validate(&self) -> Result<(), DomainError> {
+        if self.key.0.trim().is_empty() {
+            return Err(DomainError::EmptyKey);
+        }
+
+        if !self.mods.is_empty() && !self.key.is_func_key() {
+            return Err(DomainError::NoModifier);
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PhysicalKey(pub String);
+
+impl PhysicalKey {
+    fn is_func_key(&self) -> bool {
+        self.0.starts_with("F") && self.0.len() > 1
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Mods {
+    pub ctrl: bool,
+    pub alt: bool,
+    pub shift: bool,
+    pub logo: bool,
+}
+
+impl Mods {
+    fn is_empty(&self) -> bool {
+        self.ctrl || self.alt || self.shift || self.logo
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Action {
+    Launch { program: PathBuf, args: Vec<String> },
+}
