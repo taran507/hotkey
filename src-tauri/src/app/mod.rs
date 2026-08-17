@@ -116,19 +116,20 @@ impl App {
         &self,
         shortcut: &Shortcut,
     ) -> Result<fn() -> Result<(), RegistryError>, RegistryError> {
-        if shortcut.enabled {
-            self.registry.register(&shortcut.id, &shortcut.combo)?
-        } else {
-            self.registry.unregister(&shortcut.id)?
-        }
-
-        Ok(|| -> Result<(), RegistryError> {
-            if shortcut.enabled {
-                self.registry.unregister(&shortcut.id)
-            } else {
-                self.registry.register(&shortcut.id, &shortcut.combo)
-            }
-        })
+        todo!()
+        // if shortcut.enabled {
+        //     self.registry.register(&shortcut.id, &shortcut.combo)?
+        // } else {
+        //     self.registry.unregister(&shortcut.id)?
+        // }
+        //
+        // Ok(|| -> Result<(), RegistryError> {
+        //     if shortcut.enabled {
+        //         self.registry.unregister(&shortcut.id)
+        //     } else {
+        //         self.registry.register(&shortcut.id, &shortcut.combo)
+        //     }
+        // })
     }
 
     pub fn list_shortcut(&self) -> Result<Vec<Shortcut>, String> {

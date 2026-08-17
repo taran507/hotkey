@@ -13,7 +13,10 @@ pub trait ShortcutRepository: Send + Sync {
 }
 
 #[derive(Debug, Error)]
-pub enum RegistryError {}
+pub enum RegistryError {
+    #[error("Неизвестная ошибка: {0}")]
+    Internal(String)
+}
 
 pub trait HotkeyRegistry: Send + Sync {
     fn register(&self, id: &str, combo: &Combo) -> Result<(), RegistryError>;
