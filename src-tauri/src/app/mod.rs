@@ -7,9 +7,18 @@ use tracing::error;
 #[derive(Debug, Error)]
 pub enum CreateError {
     #[error("невалидное сочетание")]
-    InvalidSortcut,
+    InvalidShortcut,
     #[error("сочетание уже существует")]
-    AlredyExist,
+    AlreadyExist,
+
+    #[error("Неизвестная ошибка: {0}")]
+    Internal(String),
+}
+
+#[derive(Debug, Error)]
+pub enum DeleteError {
+    #[error("Комбинации не существует")]
+    NotFound,
 
     #[error("Неизвестная ошибка: {0}")]
     Internal(String),
@@ -35,14 +44,14 @@ impl App {
     }
 
     pub fn create_shortcut(&self, combo: Combo, action: Action) -> Result<Shortcut, CreateError> {
-        let shortcut = Shortcut::new(combo, action).map_err(|_| CreateError::InvalidSortcut)?;
+        let shortcut = Shortcut::new(combo, action).map_err(|_| CreateError::InvalidShortcut)?;
         if self
             .repo
             .get(&shortcut.id)
             .map_err(|e| CreateError::Internal(e.to_string()))?
             .is_some()
         {
-            return Err(CreateError::AlredyExist);
+            return Err(CreateError::AlreadyExist);
         }
 
         if shortcut.enabled {
@@ -62,9 +71,31 @@ impl App {
 
         Ok(shortcut)
     }
-    pub fn delete_shortcut(&self) {}
+    pub fn delete_shortcut(&self, id: &str) -> Result<(), DeleteError> {
+        if self
+            .repo
+            .get(&id)
+            .map_err(|_| DeleteError::Internal(id.to_string()))?
+            .is_none()
+        {
+            return Err(DeleteError::NotFound);
+        }
+
+        self.registry
+            .unregister(id)
+            .map_err(|e| DeleteError::Internal(e.to_string()))?;
+
+        self.repo
+            .delete(&id)
+            .map_err(|e| DeleteError::Internal(e.to_string()))?;
+
+        Ok(())
+    }
+
     pub fn set_enable_shortcut(&self) {}
-    pub fn list_shortcut(&self) {}
+    pub fn list_shortcut(&self) -> Result<Vec<Shortcut>, ()> {
+        self.repo.all().map_err(|_| ()) // todo(доработать ошибку)
+    }
     pub fn register_all_shortcut(&self) {}
     pub fn run_shortcut(&self) {}
 }
