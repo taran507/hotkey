@@ -1,7 +1,9 @@
 export type DomRefs = {
+  nameInput: HTMLInputElement;
   comboInput: HTMLInputElement;
   comboClearBtn: HTMLButtonElement;
   programInput: HTMLInputElement;
+  programPickBtn: HTMLButtonElement;
   argsInput: HTMLInputElement;
   addBtn: HTMLButtonElement;
   addErrorEl: HTMLElement;
@@ -16,9 +18,11 @@ function req<T extends Element>(selector: string): T {
 
 export function getDomRefs(): DomRefs {
   return {
+    nameInput: req<HTMLInputElement>("#name-input"),
     comboInput: req<HTMLInputElement>("#combo-input"),
     comboClearBtn: req<HTMLButtonElement>("#combo-clear"),
     programInput: req<HTMLInputElement>("#program-input"),
+    programPickBtn: req<HTMLButtonElement>("#program-pick-btn"),
     argsInput: req<HTMLInputElement>("#args-input"),
     addBtn: req<HTMLButtonElement>("#add-btn"),
     addErrorEl: req<HTMLElement>("#add-error"),

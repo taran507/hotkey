@@ -43,8 +43,14 @@ impl App {
         }
     }
 
-    pub fn create_shortcut(&self, combo: Combo, action: Action) -> Result<Shortcut, CreateError> {
-        let shortcut = Shortcut::new(combo, action).map_err(|_| CreateError::InvalidShortcut)?;
+    pub fn create_shortcut(
+        &self,
+        name: String,
+        combo: Combo,
+        action: Action,
+    ) -> Result<Shortcut, CreateError> {
+        let shortcut =
+            Shortcut::new(name, combo, action).map_err(|_| CreateError::InvalidShortcut)?;
         if self
             .repo
             .get(&shortcut.id)
@@ -108,6 +114,24 @@ impl App {
             };
             return Err(EditError::Internal(e.to_string()));
         };
+
+        Ok(())
+    }
+
+    pub fn rename_shortcut(&self, id: &str, name: String) -> Result<(), EditError> {
+        let mut shortcut = self
+            .repo
+            .get(id)
+            .map_err(|e| EditError::Internal(e.to_string()))?
+            .ok_or(EditError::NotFound)?;
+
+        shortcut
+            .rename(name)
+            .map_err(|e| EditError::Internal(e.to_string()))?;
+
+        self.repo
+            .save(&shortcut)
+            .map_err(|e| EditError::Internal(e.to_string()))?;
 
         Ok(())
     }

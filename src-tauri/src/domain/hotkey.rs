@@ -4,6 +4,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum DomainError {
+    #[error("пустое название")]
+    EmptyName,
     #[error("пустой ключ")]
     EmptyKey,
     #[error("No Modifier")]
@@ -15,20 +17,36 @@ pub type ShortcutId = String;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Shortcut {
     pub id: ShortcutId,
+    #[serde(default)]
+    pub name: String,
     pub combo: Combo,
     pub action: Action,
     pub enabled: bool,
 }
 
 impl Shortcut {
-    pub fn new(combo: Combo, action: Action) -> Result<Self, DomainError> {
+    pub fn new(name: String, combo: Combo, action: Action) -> Result<Self, DomainError> {
+        if name.trim().is_empty() {
+            return Err(DomainError::EmptyName);
+        }
+
         combo.validate()?;
         Ok(Self {
             id: combo.id(),
+            name,
             combo,
             action,
             enabled: true,
         })
+    }
+
+    pub fn rename(&mut self, name: String) -> Result<(), DomainError> {
+        if name.trim().is_empty() {
+            return Err(DomainError::EmptyName);
+        }
+
+        self.name = name;
+        Ok(())
     }
 }
 

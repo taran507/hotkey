@@ -111,6 +111,12 @@ button {
   gap: 8px;
 }
 
+.program-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
 .actions {
   grid-column: 2;
   display: flex;
@@ -141,6 +147,17 @@ button {
 
 .row-title {
   font-weight: 700;
+}
+
+.row-edit {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+.rename-input {
+  flex: 1;
 }
 
 .row-sub {

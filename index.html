@@ -21,6 +21,13 @@
       <section class="card">
         <h2>Добавить хоткей</h2>
         <div class="form-grid">
+          <label for="name-input">Название</label>
+          <input
+            id="name-input"
+            placeholder="Например: Браузер, IDE, Терминал"
+            autocomplete="off"
+          />
+
           <label for="combo-input">Комбинация</label>
           <div class="combo-row">
             <input id="combo-input" readonly placeholder="Кликни и нажми сочетание…" />
@@ -28,11 +35,14 @@
           </div>
 
           <label for="program-input">Программа</label>
-          <input
-            id="program-input"
-            placeholder="C:\\Path\\app.exe или /usr/bin/app"
-            autocomplete="off"
-          />
+          <div class="program-row">
+            <input
+              id="program-input"
+              placeholder="C:\\Path\\app.exe или /usr/bin/app"
+              autocomplete="off"
+            />
+            <button id="program-pick-btn" type="button">Выбрать файл</button>
+          </div>
 
           <label for="args-input">Аргументы</label>
           <input id="args-input" placeholder='--flag "value with spaces"' autocomplete="off" />

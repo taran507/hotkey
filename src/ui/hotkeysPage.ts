@@ -1,6 +1,7 @@
 import type { HotkeysService } from "../app/hotkeysService";
 import { parseArgs } from "../domain/args";
 import { comboToString, type Action } from "../domain/hotkey";
+import { openExecutableFileDialog } from "../infra/fileDialog";
 import type { DomRefs } from "./dom";
 import { createRecorder } from "./recorder";
 
@@ -41,10 +42,16 @@ export function mountHotkeysPage(service: HotkeysService, dom: DomRefs) {
     const rows = shortcuts
       .sort((a, b) => a.id.localeCompare(b.id))
       .map((s) => {
+        const title = s.name.trim() || comboToString(s.combo);
         return `
           <div class="row-item" data-id="${s.id}">
             <div class="row-main">
-              <div class="row-title">${comboToString(s.combo)}</div>
+              <div class="row-title">${title}</div>
+              <div class="row-edit">
+                <input class="rename-input" value="${s.name}" />
+                <button class="btn-save-name" type="button">Сохранить</button>
+              </div>
+              <div class="row-sub muted">${comboToString(s.combo)}</div>
               <div class="row-sub muted">${actionToText(s.action)}</div>
               <div class="row-sub muted id">${s.id}</div>
             </div>
@@ -64,6 +71,22 @@ export function mountHotkeysPage(service: HotkeysService, dom: DomRefs) {
 
     dom.listEl.querySelectorAll<HTMLElement>(".row-item").forEach((row) => {
       const id = row.dataset.id!;
+
+      row.querySelector<HTMLButtonElement>(".btn-save-name")?.addEventListener("click", async () => {
+        const nextName = row.querySelector<HTMLInputElement>(".rename-input")?.value.trim() ?? "";
+        if (!nextName) {
+          setError(dom.addErrorEl, "Название не должно быть пустым.");
+          return;
+        }
+
+        try {
+          await service.rename(id, nextName);
+          setError(dom.addErrorEl, null);
+          await refreshList();
+        } catch (err) {
+          setError(dom.addErrorEl, String(err));
+        }
+      });
 
       row.querySelector<HTMLInputElement>(".toggle-enabled")?.addEventListener("change", async (e) => {
         const checked = (e.target as HTMLInputElement).checked;
@@ -90,9 +113,14 @@ export function mountHotkeysPage(service: HotkeysService, dom: DomRefs) {
 
   async function addShortcut() {
     setError(dom.addErrorEl, null);
+    const name = dom.nameInput.value.trim();
     const prog = dom.programInput.value.trim();
     const args = parseArgs(dom.argsInput.value);
 
+    if (!name) {
+      setError(dom.addErrorEl, "Укажи название комбинации.");
+      return;
+    }
     if (!recorder.state.currentCombo) {
       setError(dom.addErrorEl, "Сначала запиши комбинацию.");
       return;
@@ -105,12 +133,25 @@ export function mountHotkeysPage(service: HotkeysService, dom: DomRefs) {
     const action: Action = { Launch: { program: prog, args } };
 
     try {
-      await service.create(recorder.state.currentCombo, action);
+      await service.create(name, recorder.state.currentCombo, action);
+      dom.nameInput.value = "";
       dom.programInput.value = "";
       dom.argsInput.value = "";
       recorder.clear();
       syncComboInput();
       await refreshList();
+    } catch (err) {
+      setError(dom.addErrorEl, String(err));
+    }
+  }
+
+  async function pickExecutableFile() {
+    try {
+      const selected = await openExecutableFileDialog();
+      if (!selected) return;
+
+      dom.programInput.value = selected;
+      setError(dom.addErrorEl, null);
     } catch (err) {
       setError(dom.addErrorEl, String(err));
     }
@@ -123,6 +164,9 @@ export function mountHotkeysPage(service: HotkeysService, dom: DomRefs) {
     recorder.clear();
     syncComboInput();
     setError(dom.addErrorEl, null);
+  });
+  dom.programPickBtn.addEventListener("click", () => {
+    pickExecutableFile().catch(console.error);
   });
   dom.addBtn.addEventListener("click", addShortcut);
 

@@ -8,8 +8,8 @@ export class HotkeysService {
     return this.api.list();
   }
 
-  create(combo: Combo, action: Action): Promise<Shortcut> {
-    return this.api.create(combo, action);
+  create(name: string, combo: Combo, action: Action): Promise<Shortcut> {
+    return this.api.create(name, combo, action);
   }
 
   delete(id: string): Promise<void> {
@@ -18,6 +18,10 @@ export class HotkeysService {
 
   setEnabled(id: string, enabled: boolean): Promise<void> {
     return this.api.setEnabled(id, enabled);
+  }
+
+  rename(id: string, name: string): Promise<void> {
+    return this.api.rename(id, name);
   }
 }
 

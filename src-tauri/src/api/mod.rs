@@ -23,12 +23,13 @@ pub fn list_shortcuts(state: State<'_, AppState>) -> Result<Vec<Shortcut>, Strin
 #[tauri::command]
 pub fn create_shortcut(
     state: State<'_, AppState>,
+    name: String,
     combo: Combo,
     action: Action,
 ) -> Result<Shortcut, String> {
     state
         .core
-        .create_shortcut(combo, action)
+        .create_shortcut(name, combo, action)
         .map_err(|e| e.to_string())
 }
 
@@ -46,5 +47,17 @@ pub fn set_enable_shortcut(
     state
         .core
         .set_enable_shortcut(&id, enabled)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn rename_shortcut(
+    state: State<'_, AppState>,
+    id: String,
+    name: String,
+) -> Result<(), String> {
+    state
+        .core
+        .rename_shortcut(&id, name)
         .map_err(|e| e.to_string())
 }

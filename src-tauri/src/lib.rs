@@ -103,6 +103,7 @@ pub fn run() {
     drop(tx);
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(plugin)
         .on_window_event(|window, event| {
@@ -115,7 +116,8 @@ pub fn run() {
             api::list_shortcuts,
             api::create_shortcut,
             api::delete_shortcut,
-            api::set_enable_shortcut
+            api::set_enable_shortcut,
+            api::rename_shortcut
         ])
         .setup(|app| {
             let config_dir = app.path().app_config_dir()?.join("shortcuts.json");

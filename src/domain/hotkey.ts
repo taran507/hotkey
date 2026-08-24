@@ -1,7 +1,7 @@
 export type Mods = { ctrl: boolean; alt: boolean; shift: boolean; logo: boolean };
 export type Combo = { key: string; mods: Mods };
 export type Action = { Launch: { program: string; args: string[] } };
-export type Shortcut = { id: string; combo: Combo; action: Action; enabled: boolean };
+export type Shortcut = { id: string; name: string; combo: Combo; action: Action; enabled: boolean };
 
 export function comboToString(combo: Combo): string {
   const parts: string[] = [];
