@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -11,7 +12,7 @@ pub enum DomainError {
 
 pub type ShortcutId = String;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Shortcut {
     pub id: ShortcutId,
     pub combo: Combo,
@@ -31,7 +32,7 @@ impl Shortcut {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Combo {
     pub key: PhysicalKey,
     pub mods: Mods,
@@ -50,7 +51,8 @@ impl Combo {
             return Err(DomainError::EmptyKey);
         }
 
-        if !self.mods.is_empty() && !self.key.is_func_key() {
+        // For non-function keys (e.g. letters), require at least one modifier to avoid conflicts.
+        if self.mods.is_empty() && !self.key.is_func_key() {
             return Err(DomainError::NoModifier);
         }
 
@@ -58,7 +60,7 @@ impl Combo {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PhysicalKey(pub String);
 
 impl PhysicalKey {
@@ -67,7 +69,7 @@ impl PhysicalKey {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Mods {
     pub ctrl: bool,
     pub alt: bool,
@@ -77,11 +79,11 @@ pub struct Mods {
 
 impl Mods {
     fn is_empty(&self) -> bool {
-        self.ctrl || self.alt || self.shift || self.logo
+        !(self.ctrl || self.alt || self.shift || self.logo)
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Action {
     Launch { program: PathBuf, args: Vec<String> },
 }

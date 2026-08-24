@@ -1,11 +1,38 @@
 use crate::domain::hotkey::Action;
 use crate::domain::repository;
 use crate::domain::repository::LaunchError;
+use std::process::Command;
+use tracing::info;
 
 pub struct Launcher {}
 
+impl Launcher {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
 impl repository::Launcher for Launcher {
     fn launch(&self, action: &Action) -> Result<(), LaunchError> {
-        todo!()
+        info!("Launching action: {:?}", action);
+
+        match action {
+            Action::Launch { program, args } => {
+                let mut cmd = Command::new(program);
+                cmd.args(args);
+
+                #[cfg(target_os = "windows")]
+                {
+                    // CREATE_NO_WINDOW
+                    const CREATE_NO_WINDOW: u32 = 0x08000000;
+                    use std::os::windows::process::CommandExt;
+                    cmd.creation_flags(CREATE_NO_WINDOW);
+                }
+
+                cmd.spawn()
+                    .map(|_| ())
+                    .map_err(|e| LaunchError::Internal(e.to_string()))
+            }
+        }
     }
 }

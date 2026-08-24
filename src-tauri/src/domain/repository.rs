@@ -3,7 +3,10 @@ use std::sync::mpsc::Receiver;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub enum RepoError {}
+pub enum RepoError {
+    #[error("Неизвестная ошибка: {0}")]
+    Internal(String),
+}
 
 pub trait ShortcutRepository: Send + Sync {
     fn get(&self, id: &str) -> Result<Option<Shortcut>, RepoError>;
@@ -25,7 +28,10 @@ pub trait HotkeyRegistry: Send + Sync {
 }
 
 #[derive(Debug, Error)]
-pub enum LaunchError {}
+pub enum LaunchError {
+    #[error("Неизвестная ошибка: {0}")]
+    Internal(String),
+}
 
 pub trait Launcher: Send + Sync {
     fn launch(&self, action: &Action) -> Result<(), LaunchError>;

@@ -1,4 +1,4 @@
-use crate::domain::hotkey::{Action, Combo, DomainError, Shortcut};
+use crate::domain::hotkey::{Action, Combo, Shortcut};
 use crate::domain::repository::{HotkeyRegistry, Launcher, RegistryError, ShortcutRepository};
 use std::sync::Arc;
 use thiserror::Error;
@@ -115,21 +115,25 @@ impl App {
     fn register_shortcut(
         &self,
         shortcut: &Shortcut,
-    ) -> Result<fn() -> Result<(), RegistryError>, RegistryError> {
-        todo!()
-        // if shortcut.enabled {
-        //     self.registry.register(&shortcut.id, &shortcut.combo)?
-        // } else {
-        //     self.registry.unregister(&shortcut.id)?
-        // }
-        //
-        // Ok(|| -> Result<(), RegistryError> {
-        //     if shortcut.enabled {
-        //         self.registry.unregister(&shortcut.id)
-        //     } else {
-        //         self.registry.register(&shortcut.id, &shortcut.combo)
-        //     }
-        // })
+    ) -> Result<Box<dyn FnOnce() -> Result<(), RegistryError>>, RegistryError> {
+        let id = shortcut.id.clone();
+        let combo = shortcut.combo.clone();
+        let enabled = shortcut.enabled;
+        let registry = Arc::clone(&self.registry);
+
+        if enabled {
+            registry.register(&id, &combo)?
+        } else {
+            registry.unregister(&id)?
+        }
+
+        Ok(Box::new(move || -> Result<(), RegistryError> {
+            if enabled {
+                registry.unregister(&id)
+            } else {
+                registry.register(&id, &combo)
+            }
+        }))
     }
 
     pub fn list_shortcut(&self) -> Result<Vec<Shortcut>, String> {
@@ -141,6 +145,9 @@ impl App {
         let mut rollback_list = Vec::new();
 
         for shortcut in shortcut_list.iter() {
+            if !shortcut.enabled {
+                continue;
+            }
             // регистрируем хоткей
             match self.register_shortcut(shortcut) {
                 Ok(rollback) => {
@@ -161,5 +168,17 @@ impl App {
 
         Ok(())
     }
-    pub fn run_shortcut(&self) {}
+    pub fn run_shortcut(&self, id: &str) -> Result<(), String> {
+        let shortcut = self
+            .repo
+            .get(id)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "Комбинации не существует".to_string())?;
+
+        if !shortcut.enabled {
+            return Ok(());
+        }
+
+        self.launch.launch(&shortcut.action).map_err(|e| e.to_string())
+    }
 }

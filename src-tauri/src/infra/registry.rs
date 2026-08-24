@@ -1,10 +1,10 @@
-use crate::domain::hotkey::{Combo, Mods, PhysicalKey, ShortcutId};
+use crate::domain::hotkey::{Combo, ShortcutId};
 use crate::domain::repository::{HotkeyRegistry, RegistryError};
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::mpsc::Receiver;
 use std::sync::{Arc, Mutex};
-use tauri::{App, AppHandle};
+use tauri::AppHandle;
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut};
 
 pub struct TauriHotkeyRegistry {
@@ -33,16 +33,16 @@ impl From<&Combo> for Option<Shortcut> {
     fn from(value: &Combo) -> Self {
         let mut modifiers = Modifiers::default();
         if value.mods.ctrl {
-            modifiers = modifiers.intersection(Modifiers::CONTROL);
+            modifiers |= Modifiers::CONTROL;
         }
         if value.mods.alt {
-            modifiers = modifiers.intersection(Modifiers::ALT);
+            modifiers |= Modifiers::ALT;
         }
         if value.mods.shift {
-            modifiers = modifiers.intersection(Modifiers::SHIFT);
+            modifiers |= Modifiers::SHIFT;
         }
         if value.mods.logo {
-            modifiers = modifiers.intersection(Modifiers::SUPER)
+            modifiers |= Modifiers::SUPER;
         }
 
         let key = Code::from_str(&value.key.0).ok()?;
