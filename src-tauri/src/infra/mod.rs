@@ -1,3 +1,3 @@
 pub mod configs;
-pub mod registry;
 pub mod launcher;
+pub mod registry;

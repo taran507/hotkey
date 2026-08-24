@@ -3,7 +3,6 @@ use crate::domain::hotkey::{Action, Combo, Shortcut};
 use std::sync::Arc;
 use tauri::State;
 
-
 #[derive(Clone)]
 pub struct AppState {
     core: Arc<app::App>,
@@ -51,11 +50,7 @@ pub fn set_enable_shortcut(
 }
 
 #[tauri::command]
-pub fn rename_shortcut(
-    state: State<'_, AppState>,
-    id: String,
-    name: String,
-) -> Result<(), String> {
+pub fn rename_shortcut(state: State<'_, AppState>, id: String, name: String) -> Result<(), String> {
     state
         .core
         .rename_shortcut(&id, name)

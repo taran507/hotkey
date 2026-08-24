@@ -18,7 +18,7 @@ pub trait ShortcutRepository: Send + Sync {
 #[derive(Debug, Error)]
 pub enum RegistryError {
     #[error("Неизвестная ошибка: {0}")]
-    Internal(String)
+    Internal(String),
 }
 
 pub trait HotkeyRegistry: Send + Sync {

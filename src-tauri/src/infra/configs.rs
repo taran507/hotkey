@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::RwLock;
+use tracing::info;
 
 /// JSON file-backed repository (MVP storage).
 #[derive(Debug)]
@@ -14,6 +15,7 @@ pub struct JsonShortcutRepository {
 
 impl JsonShortcutRepository {
     pub fn load_or_default(path: PathBuf) -> Result<Self, RepoError> {
+        info!("load config: {:?}", path.as_path());
         let map = load_map(&path)?;
 
         Ok(Self {

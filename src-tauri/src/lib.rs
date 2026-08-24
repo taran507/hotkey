@@ -1,10 +1,9 @@
 use crate::domain::hotkey::ShortcutId;
-use crate::domain::repository::{HotkeyRegistry, ShortcutRepository};
+use crate::domain::repository::HotkeyRegistry;
 use crate::infra::configs::JsonShortcutRepository;
 use crate::infra::launcher::Launcher;
 use crate::infra::registry::TauriHotkeyRegistry;
 use std::collections::HashMap;
-use std::io;
 use std::sync::{mpsc, Arc, Mutex};
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -17,14 +16,7 @@ mod app;
 mod domain;
 mod infra;
 
-fn show_main(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.unminimize();
-        let _ = window.show();
-        let _ = window.set_focus();
-    }
-}
-
+// Настройка сворачивания в трей.
 fn setup_tray(app: &App) -> tauri::Result<()> {
     let Some(icon) = app.default_window_icon().cloned() else {
         return Ok(());
@@ -35,11 +27,19 @@ fn setup_tray(app: &App) -> tauri::Result<()> {
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&show, &hide, &quit])?;
 
+    let show_main = |app: &AppHandle| {
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.unminimize();
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    };
+
     let _tray = TrayIconBuilder::with_id("main-tray")
         .icon(icon)
         .menu(&menu)
         .show_menu_on_left_click(false)
-        .on_menu_event(|app, event| match event.id().as_ref() {
+        .on_menu_event(move |app, event| match event.id().as_ref() {
             "show" => show_main(app),
             "hide" => {
                 if let Some(window) = app.get_webview_window("main") {
@@ -49,7 +49,7 @@ fn setup_tray(app: &App) -> tauri::Result<()> {
             "quit" => app.exit(0),
             _ => {}
         })
-        .on_tray_icon_event(|tray, event| match event {
+        .on_tray_icon_event(move |tray, event| match event {
             TrayIconEvent::Click {
                 button: MouseButton::Left,
                 button_state: MouseButtonState::Up,
@@ -62,27 +62,14 @@ fn setup_tray(app: &App) -> tauri::Result<()> {
     Ok(())
 }
 
-fn spawn_shortcut_listener(registry: Arc<dyn HotkeyRegistry>, core: Arc<app::App>) {
-    let receiver = registry.subscribe();
-    std::thread::spawn(move || {
-        while let Ok(shortcut_id) = receiver.recv() {
-            info!("Hotkey Press {shortcut_id}");
-            if let Err(e) = core.run_shortcut(&shortcut_id) {
-                error!("run_shortcut({shortcut_id}): {e}");
-            }
-        }
-    });
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let (tx, rx) = mpsc::channel::<ShortcutId>();
     let os_to_shortcut: Arc<Mutex<HashMap<u32, ShortcutId>>> = Arc::new(Mutex::new(HashMap::new()));
 
     let os_to_shortcut_for_handler = os_to_shortcut.clone();
-    let tx_for_handler = tx.clone();
 
-    let plugin = tauri_plugin_global_shortcut::Builder::new()
+    let shortcut_plugin = tauri_plugin_global_shortcut::Builder::new()
         .with_handler(move |_app, shortcut, event| {
             if event.state() != ShortcutState::Pressed {
                 return;
@@ -95,17 +82,15 @@ pub fn run() {
             };
 
             if let Some(shortcut_id) = map.get(&os_id) {
-                let _ = tx_for_handler.send(shortcut_id.clone());
+                let _ = tx.send(shortcut_id.clone());
             }
         })
         .build();
 
-    drop(tx);
-
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(plugin)
+        .plugin(shortcut_plugin)
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
@@ -120,28 +105,40 @@ pub fn run() {
             api::rename_shortcut
         ])
         .setup(|app| {
-            let config_dir = app.path().app_config_dir()?.join("shortcuts.json");
-
-            let storage: Arc<dyn ShortcutRepository> =
-                Arc::new(JsonShortcutRepository::load_or_default(config_dir).map_err(|e| {
-                    io::Error::new(io::ErrorKind::Other, e.to_string())
-                })?);
-
             let registry = Arc::new(TauriHotkeyRegistry::new(
                 app.handle().clone(),
                 rx,
                 os_to_shortcut,
             ));
 
-            let launcher = Arc::new(Launcher::new());
-            let core = Arc::new(app::App::new(storage, registry.clone(), launcher));
+            let repo = Arc::new(
+                JsonShortcutRepository::load_or_default(
+                    app.path().app_config_dir()?.join("shortcuts.json"),
+                )
+                .map_err(|e| e.to_string())?,
+            );
+            let launch = Arc::new(Launcher::new());
+
+            let application = app::App::new(repo, registry.clone(), launch);
+
+            let core = Arc::new(application);
 
             // Register all enabled shortcuts from persisted config.
             if let Err(e) = core.register_all_shortcut() {
                 error!("register_all_shortcut: {e}");
             }
 
-            spawn_shortcut_listener(registry.clone(), core.clone());
+            let receiver = registry.subscribe();
+            let core_copy = core.clone();
+
+            std::thread::spawn(move || {
+                while let Ok(shortcut_id) = receiver.recv() {
+                    info!("Hotkey Press {shortcut_id}");
+                    if let Err(e) = core_copy.run_shortcut(&shortcut_id) {
+                        error!("run_shortcut({shortcut_id}): {e}");
+                    }
+                }
+            });
 
             setup_tray(app)?;
             app.manage(api::AppState::new(core));

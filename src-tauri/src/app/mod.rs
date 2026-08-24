@@ -192,6 +192,7 @@ impl App {
 
         Ok(())
     }
+
     pub fn run_shortcut(&self, id: &str) -> Result<(), String> {
         let shortcut = self
             .repo
@@ -203,6 +204,8 @@ impl App {
             return Ok(());
         }
 
-        self.launch.launch(&shortcut.action).map_err(|e| e.to_string())
+        self.launch
+            .launch(&shortcut.action)
+            .map_err(|e| e.to_string())
     }
 }
