@@ -1,5 +1,4 @@
-use crate::domain::hotkey::{Action, Combo, Shortcut, ShortcutId};
-use std::sync::mpsc::Receiver;
+use crate::domain::hotkey::{Action, Combo, Shortcut};
 use thiserror::Error;
 
 #[derive(Debug, Error)]

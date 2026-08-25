@@ -1,19 +1,16 @@
-use crate::domain::hotkey::{Combo, ShortcutId};
-use crate::domain::repository::HotkeyRegistry;
+use crate::domain::hotkey::ShortcutId;
 use crate::infra::configs::JsonShortcutRepository;
 use crate::infra::launcher::Launcher;
 use crate::infra::registry::TauriHotkeyRegistry;
 use crate::infra::tauri_adapter;
+use crate::interfaces::daemons::EventListener;
 use crate::interfaces::tauri_command;
-use std::collections::HashMap;
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{mpsc, Arc};
 use tauri;
 use tauri::menu::{Menu, MenuItem};
-use tauri::plugin::TauriPlugin;
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::Manager;
-use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
-use tracing::{error, info};
+use tauri_plugin_global_shortcut::ShortcutState;
 
 mod app;
 mod domain;
@@ -66,26 +63,6 @@ fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn build_shortcut_plugin() -> (TauriPlugin<tauri::Wry>, mpsc::Receiver<ShortcutId>) {
-    let (tx, rx) = mpsc::channel::<ShortcutId>();
-
-    let plugin = tauri_plugin_global_shortcut::Builder::new()
-        .with_handler(move |_app, shortcut, event| {
-            if event.state() != ShortcutState::Pressed {
-                return;
-            }
-
-            let Some(combo) = tauri_adapter::shortcut_to_combo(&shortcut) else {
-                return;
-            };
-
-            let _ = tx.send(combo.id());
-        })
-        .build();
-
-    (plugin, rx)
-}
-
 fn setup_close_event(window: &tauri::Window, event: &tauri::WindowEvent) {
     if let tauri::WindowEvent::CloseRequested { api, .. } = event {
         api.prevent_close();
@@ -95,12 +72,26 @@ fn setup_close_event(window: &tauri::Window, event: &tauri::WindowEvent) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let (shortcut_plugin, rx) = build_shortcut_plugin();
+    let (tx, rx) = mpsc::channel::<ShortcutId>();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(shortcut_plugin)
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(move |_app, shortcut, event| {
+                    if event.state() != ShortcutState::Pressed {
+                        return;
+                    }
+
+                    let Some(combo) = tauri_adapter::shortcut_to_combo(&shortcut) else {
+                        return;
+                    };
+
+                    let _ = tx.send(combo.id());
+                })
+                .build(),
+        )
         .on_window_event(setup_close_event)
         .invoke_handler(tauri::generate_handler![
             tauri_command::list_shortcuts,
@@ -118,23 +109,14 @@ pub fn run() {
             let repo = Arc::new(
                 JsonShortcutRepository::load_or_default(conf_path).map_err(|e| e.to_string())?,
             );
+
             let launch = Arc::new(Launcher::new());
 
-            let application = app::App::new(repo, registry.clone(), launch);
-            let core = Arc::new(application);
+            let core = Arc::new(app::App::new(repo, registry, launch));
 
             core.register_all_shortcut()?;
 
-            let core_copy = core.clone();
-
-            std::thread::spawn(move || {
-                while let Ok(shortcut_id) = rx.recv() {
-                    info!("Hotkey Press {shortcut_id}");
-                    if let Err(e) = core_copy.run_shortcut(&shortcut_id) {
-                        error!("run_shortcut({shortcut_id}): {e}");
-                    }
-                }
-            });
+            EventListener::handle_events(core.clone(), rx);
 
             app.manage(tauri_command::AppState::new(core));
 

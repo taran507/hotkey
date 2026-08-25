@@ -2,7 +2,6 @@ use crate::domain::hotkey::{Combo, ShortcutId};
 use crate::domain::repository::{HotkeyRegistry, RegistryError};
 use crate::infra::tauri_adapter;
 use std::collections::HashMap;
-use std::sync::mpsc::Receiver;
 use std::sync::Mutex;
 use tauri::AppHandle;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
