@@ -17,6 +17,8 @@ pub trait ShortcutRepository: Send + Sync {
 
 #[derive(Debug, Error)]
 pub enum RegistryError {
+    #[error("Невозможно преобразовать")]
+    InvalidShortcut,
     #[error("Неизвестная ошибка: {0}")]
     Internal(String),
 }
@@ -24,7 +26,6 @@ pub enum RegistryError {
 pub trait HotkeyRegistry: Send + Sync {
     fn register(&self, id: &str, combo: &Combo) -> Result<(), RegistryError>;
     fn unregister(&self, id: &str) -> Result<(), RegistryError>;
-    fn subscribe(&self) -> Receiver<ShortcutId>;
 }
 
 #[derive(Debug, Error)]

@@ -57,7 +57,7 @@ pub struct Combo {
 }
 
 impl Combo {
-    fn id(&self) -> String {
+    pub fn id(&self) -> String {
         format!(
             "{}|ctrl:{}|alt:{}|shift:{}|logo:{}",
             self.key.0, self.mods.ctrl, self.mods.alt, self.mods.shift, self.mods.logo
