@@ -40,3 +40,9 @@ export function parseArgs(raw: string): string[] {
   return out;
 }
 
+export function formatArgs(args: string[]): string {
+  return args
+      .map((arg) => (/\s|"/.test(arg) ? `"${arg.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"` : arg))
+      .join(" ");
+}
+

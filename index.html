@@ -11,65 +11,88 @@
   <body>
     <main class="container">
       <header class="header">
-        <h1>Hotkey</h1>
-        <p class="muted">
+        <div class="header-row">
+          <h1>Hotkey</h1>
+          <nav class="nav" aria-label="Разделы">
+            <a href="#hotkeys" class="is-active" data-nav="hotkeys" aria-current="page">Хоткеи</a>
+            <a href="#settings" data-nav="settings">Настройки</a>
+          </nav>
+        </div>
+        <p class="muted page-desc is-active" data-page-desc="hotkeys">
           Глобальные хоткеи для запуска программ. Если ОС не позволяет
           зарегистрировать сочетание — будет ошибка.
         </p>
+        <p class="muted page-desc" data-page-desc="editor">
+          Заполни поля и добавь новый хоткей.
+        </p>
+        <p class="muted page-desc" data-page-desc="settings">
+          Параметры приложения.
+        </p>
       </header>
 
-      <section class="card">
-        <h2>Настройки</h2>
-        <label class="toggle settings-toggle">
-          <input id="autostart-toggle" type="checkbox"/>
-          <span>Запускать вместе с системой</span>
-        </label>
-        <p class="muted settings-hint">
-          При входе в Windows приложение откроется свёрнутым в трей.
-        </p>
-        <div id="autostart-error" class="error"></div>
-      </section>
-
-      <section class="card">
-        <h2>Добавить хоткей</h2>
-        <div class="form-grid">
-          <label for="name-input">Название</label>
-          <input
-            id="name-input"
-            placeholder="Например: Браузер, IDE, Терминал"
-            autocomplete="off"
-          />
-
-          <label for="combo-input">Комбинация</label>
-          <div class="combo-row">
-            <input id="combo-input" readonly placeholder="Кликни и нажми сочетание…" />
-            <button id="combo-clear" type="button">Очистить</button>
+      <div id="page-hotkeys" class="page is-active" data-page="hotkeys">
+        <section class="card">
+          <div class="card-header">
+            <h2>Хоткеи</h2>
+            <a class="btn" href="#editor">Добавить</a>
           </div>
+          <div id="list-error" class="error"></div>
+          <div id="list" class="list"></div>
+        </section>
+      </div>
 
-          <label for="program-input">Программа</label>
-          <div class="program-row">
+      <div id="page-editor" class="page" data-page="editor">
+        <section class="card">
+          <h2 id="editor-title">Новый хоткей</h2>
+          <div class="form-grid">
+            <label for="name-input">Название</label>
             <input
-              id="program-input"
-              placeholder="C:\\Path\\app.exe или /usr/bin/app"
-              autocomplete="off"
+                    id="name-input"
+                    placeholder="Например: Браузер, IDE, Терминал"
+                    autocomplete="off"
             />
-            <button id="program-pick-btn" type="button">Выбрать файл</button>
+
+            <label for="combo-input">Комбинация</label>
+            <div class="combo-row">
+              <input id="combo-input" readonly placeholder="Кликни и нажми сочетание…"/>
+              <button id="combo-clear" type="button">Очистить</button>
+            </div>
+
+            <label for="program-input">Программа</label>
+            <div class="program-row">
+              <input
+                      id="program-input"
+                      placeholder="C:\\Path\\app.exe или /usr/bin/app"
+                      autocomplete="off"
+              />
+              <button id="program-pick-btn" type="button">Выбрать файл</button>
+            </div>
+
+            <label for="args-input">Аргументы</label>
+            <input id="args-input" placeholder='--flag "value with spaces"' autocomplete="off"/>
+
+            <div class="actions">
+              <button id="editor-submit" type="button">Добавить</button>
+              <a class="btn-ghost" href="#hotkeys">Отмена</a>
+              <div id="editor-error" class="error"></div>
+            </div>
           </div>
+        </section>
+      </div>
 
-          <label for="args-input">Аргументы</label>
-          <input id="args-input" placeholder='--flag "value with spaces"' autocomplete="off" />
-
-          <div class="actions">
-            <button id="add-btn" type="button">Добавить</button>
-            <div id="add-error" class="error"></div>
-          </div>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2>Хоткеи</h2>
-        <div id="list" class="list"></div>
-      </section>
+      <div id="page-settings" class="page" data-page="settings">
+        <section class="card">
+          <h2>Автозапуск</h2>
+          <label class="toggle settings-toggle">
+            <input id="autostart-toggle" type="checkbox"/>
+            <span>Запускать вместе с системой</span>
+          </label>
+          <p class="muted settings-hint">
+            При входе в Windows приложение откроется свёрнутым в трей.
+          </p>
+          <div id="autostart-error" class="error"></div>
+        </section>
+      </div>
     </main>
   </body>
 </html>

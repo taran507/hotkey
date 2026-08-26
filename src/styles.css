@@ -34,6 +34,52 @@
   gap: 6px;
 }
 
+.header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.nav {
+  display: flex;
+  gap: 4px;
+}
+
+.nav a {
+  color: inherit;
+  padding: 0.4em 0.9em;
+  border-radius: 10px;
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+.nav a:hover,
+.nav a.is-active {
+  opacity: 1;
+  color: inherit;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.page {
+  display: none;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.page.is-active {
+  display: flex;
+}
+
+.page-desc {
+  display: none;
+  margin: 0;
+}
+
+.page-desc.is-active {
+  display: block;
+}
+
 .muted {
   opacity: 0.72;
 }
@@ -98,6 +144,53 @@ button {
   font-size: 18px;
 }
 
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.card-header h2 {
+  margin: 0;
+}
+
+a.btn,
+a.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+  text-decoration: none;
+}
+
+a.btn {
+  border-radius: 10px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.0em;
+  font-size: 1em;
+  font-weight: 500;
+  background-color: #ffffff;
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.12);
+}
+
+a.btn:hover {
+  border-color: #396cd8;
+  color: inherit;
+}
+
+.btn-ghost {
+  padding: 0.6em 1.0em;
+  border-radius: 10px;
+  opacity: 0.78;
+}
+
+.btn-ghost:hover {
+  color: inherit;
+  opacity: 1;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: 140px 1fr;
@@ -127,6 +220,10 @@ button {
 .error {
   color: #b00020;
   font-size: 0.95em;
+}
+
+.error:empty {
+  display: none;
 }
 
 .list {
@@ -174,6 +271,8 @@ button {
 .row-controls {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -217,8 +316,16 @@ button {
     background-color: #0f0f0f98;
   }
 
-  button:active {
-    background-color: #0f0f0f69;
+  a.btn {
+    background-color: #0f0f0f98;
+  }
+
+  a.btn:hover {
+    color: inherit;
+  }
+
+  .btn-ghost:hover {
+    color: inherit;
   }
 
   .card {
@@ -230,5 +337,11 @@ button {
   .row-item {
     background: rgba(10, 10, 10, 0.35);
     border-color: rgba(255, 255, 255, 0.12);
+  }
+
+  .nav a:hover,
+  .nav a.is-active {
+    color: inherit;
+    background: rgba(255, 255, 255, 0.08);
   }
 }

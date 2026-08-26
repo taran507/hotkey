@@ -10,6 +10,6 @@ export function comboToString(combo: Combo): string {
   if (combo.mods.shift) parts.push("Shift");
   if (combo.mods.logo) parts.push("Win");
   parts.push(combo.key);
-  return parts.join("+");
+  return "Комбинация клавиш: " + parts.join("+");
 }
 

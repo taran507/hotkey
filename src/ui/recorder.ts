@@ -1,4 +1,4 @@
-import type { Combo } from "../domain/hotkey";
+import type {Combo} from "../domain/hotkey";
 
 export type RecorderState = {
   recording: boolean;
@@ -26,7 +26,11 @@ export function createRecorder() {
   }
 
   function clear() {
-    state.currentCombo = null;
+    set(null);
+  }
+
+  function set(combo: Combo | null) {
+    state.currentCombo = combo;
     state.recording = false;
   }
 
@@ -44,6 +48,6 @@ export function createRecorder() {
     stop();
   }
 
-  return { state, start, stop, clear, onKeyDown };
+  return {state, start, stop, clear, set, onKeyDown};
 }
 
