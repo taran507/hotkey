@@ -19,6 +19,18 @@
       </header>
 
       <section class="card">
+        <h2>Настройки</h2>
+        <label class="toggle settings-toggle">
+          <input id="autostart-toggle" type="checkbox"/>
+          <span>Запускать вместе с системой</span>
+        </label>
+        <p class="muted settings-hint">
+          При входе в Windows приложение откроется свёрнутым в трей.
+        </p>
+        <div id="autostart-error" class="error"></div>
+      </section>
+
+      <section class="card">
         <h2>Добавить хоткей</h2>
         <div class="form-grid">
           <label for="name-input">Название</label>

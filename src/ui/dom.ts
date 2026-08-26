@@ -1,4 +1,6 @@
 export type DomRefs = {
+  autostartToggle: HTMLInputElement;
+  autostartErrorEl: HTMLElement;
   nameInput: HTMLInputElement;
   comboInput: HTMLInputElement;
   comboClearBtn: HTMLButtonElement;
@@ -18,6 +20,8 @@ function req<T extends Element>(selector: string): T {
 
 export function getDomRefs(): DomRefs {
   return {
+    autostartToggle: req<HTMLInputElement>("#autostart-toggle"),
+    autostartErrorEl: req<HTMLElement>("#autostart-error"),
     nameInput: req<HTMLInputElement>("#name-input"),
     comboInput: req<HTMLInputElement>("#combo-input"),
     comboClearBtn: req<HTMLButtonElement>("#combo-clear"),

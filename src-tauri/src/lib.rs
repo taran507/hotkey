@@ -9,8 +9,11 @@ use tauri;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::Manager;
+use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_global_shortcut::ShortcutState;
 use tracing::error;
+
+const AUTOSTART_ARG: &str = "--autostart";
 
 mod app;
 mod domain;
@@ -28,20 +31,12 @@ fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&show, &hide, &quit])?;
 
-    let show_main = |app: &tauri::AppHandle| {
-        if let Some(window) = app.get_webview_window("main") {
-            let _ = window.unminimize();
-            let _ = window.show();
-            let _ = window.set_focus();
-        }
-    };
-
     let _tray = TrayIconBuilder::with_id("main-tray")
         .icon(icon)
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(move |app, event| match event.id().as_ref() {
-            "show" => show_main(app),
+            "show" => show_main_window(app),
             "hide" => {
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.hide();
@@ -55,12 +50,24 @@ fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
                 button: MouseButton::Left,
                 button_state: MouseButtonState::Up,
                 ..
-            } => show_main(tray.app_handle()),
+            } => show_main_window(tray.app_handle()),
             _ => {}
         })
         .build(app)?;
 
     Ok(())
+}
+
+fn show_main_window(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+fn launched_from_autostart() -> bool {
+    std::env::args().any(|arg| arg == AUTOSTART_ARG)
 }
 
 fn setup_close_event(window: &tauri::Window, event: &tauri::WindowEvent) {
@@ -77,6 +84,10 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_autostart::init(
+            MacosLauncher::LaunchAgent,
+            Some(vec![AUTOSTART_ARG]),
+        ))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(move |_app, shortcut, event| {
@@ -102,6 +113,10 @@ pub fn run() {
         ])
         .setup(move |app| {
             setup_tray(app)?;
+
+            if !launched_from_autostart() {
+                show_main_window(app.handle());
+            }
 
             let registry = Arc::new(TauriHotkeyRegistry::new(app.handle().clone()));
 
