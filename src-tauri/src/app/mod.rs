@@ -35,12 +35,14 @@ impl App {
         repo: Arc<dyn ShortcutRepository>,
         registry: Arc<dyn HotkeyRegistry>,
         launch: Arc<dyn Launcher>,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, String> {
+        let app = Self {
             repo,
             registry,
             launch,
-        }
+        };
+        app.register_all_shortcut()?;
+        Ok(app)
     }
 
     pub fn create_shortcut(
@@ -164,7 +166,7 @@ impl App {
         self.repo.all().map_err(|e| e.to_string()) // todo(доработать ошибку)
     }
 
-    pub fn register_all_shortcut(&self) -> Result<(), String> {
+    fn register_all_shortcut(&self) -> Result<(), String> {
         let shortcut_list = self.list_shortcut()?;
         let mut rollback_list = Vec::new();
 

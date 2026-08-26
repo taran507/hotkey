@@ -1501,7 +1501,6 @@ dependencies = [
  "thiserror 2.0.20",
  "tracing",
  "tracing-subscriber",
- "uuid",
 ]
 
 [[package]]

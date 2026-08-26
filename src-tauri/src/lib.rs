@@ -3,7 +3,6 @@ use crate::infra::configs::JsonShortcutRepository;
 use crate::infra::launcher::Launcher;
 use crate::infra::registry::TauriHotkeyRegistry;
 use crate::infra::tauri_adapter;
-use crate::interfaces::daemons::EventListener;
 use crate::interfaces::tauri_command;
 use std::sync::{mpsc, Arc};
 use tauri;
@@ -11,6 +10,7 @@ use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::Manager;
 use tauri_plugin_global_shortcut::ShortcutState;
+use tracing::error;
 
 mod app;
 mod domain;
@@ -100,7 +100,7 @@ pub fn run() {
             tauri_command::set_enable_shortcut,
             tauri_command::rename_shortcut
         ])
-        .setup(|app| {
+        .setup(move |app| {
             setup_tray(app)?;
 
             let registry = Arc::new(TauriHotkeyRegistry::new(app.handle().clone()));
@@ -111,14 +111,22 @@ pub fn run() {
             );
 
             let launch = Arc::new(Launcher::new());
+            let application = app::App::new(repo, registry, launch)?;
 
-            let core = Arc::new(app::App::new(repo, registry, launch));
+            let core = Arc::new(application);
 
-            core.register_all_shortcut()?;
+            app.manage(tauri_command::AppState::new(core.clone()));
 
-            EventListener::handle_events(core.clone(), rx);
-
-            app.manage(tauri_command::AppState::new(core));
+            std::thread::Builder::new()
+                .name("hotkey-worker".into())
+                .spawn(move || {
+                    while let Ok(id) = rx.recv() {
+                        if let Err(e) = core.run_shortcut(&id) {
+                            error!("run shortcut: {e}");
+                        }
+                    }
+                })
+                .expect("spawn hotkey worker");
 
             Ok(())
         })
