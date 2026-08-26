@@ -84,3 +84,4 @@ jobs:
             target/release/bundle/msi/*.msi
             target/release/bundle/deb/*.deb
             target/release/bundle/appimage/*.AppImage
+            
