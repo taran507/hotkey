@@ -2,6 +2,7 @@ use crate::infra::configs::JsonShortcutRepository;
 use crate::infra::launcher::Launcher;
 use crate::infra::registry::TauriHotkeyRegistry;
 use crate::interfaces::{tauri_command, tauri_hotkey};
+use app::App;
 use std::sync::{mpsc, Arc};
 use tauri;
 use tauri::menu::{Menu, MenuItem};
@@ -110,9 +111,8 @@ pub fn run() {
             );
 
             let launch = Arc::new(Launcher::new());
-            let application = app::App::new(repo, registry.clone(), launch)?;
 
-            let core = Arc::new(application);
+            let core = Arc::new(App::new(repo, registry.clone(), launch)?);
 
             app.manage(tauri_command::AppState::new(core.clone()));
 
