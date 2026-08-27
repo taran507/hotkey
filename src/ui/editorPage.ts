@@ -12,7 +12,9 @@ export type ShortcutDraft = {
     action: Action;
 };
 
-type EditorSession = { kind: "create" } | { kind: "edit"; id: string };
+type EditorSession =
+    | { kind: "create" }
+    | { kind: "edit"; id: string; enabled: boolean };
 
 function setError(el: HTMLElement, msg: string | null) {
     el.textContent = msg ?? "";
@@ -100,11 +102,8 @@ export function mountEditorPage(service: HotkeysService, dom: EditorDomRefs) {
         await service.create(draft.name, draft.combo, draft.action);
     }
 
-    async function saveEdit(id: string, draft: ShortcutDraft) {
-        // Same page will persist combo/action here once update exists on the backend.
-        void id;
-        void draft;
-        await service.update(id, draft.name, draft.combo, draft.action);
+    async function saveEdit(id: string, enabled: boolean, draft: ShortcutDraft) {
+        await service.update(id, draft.name, draft.combo, draft.action, enabled);
     }
 
     async function submit() {
@@ -116,7 +115,7 @@ export function mountEditorPage(service: HotkeysService, dom: EditorDomRefs) {
             if (session.kind === "create") {
                 await saveCreate(draft);
             } else {
-                await saveEdit(session.id, draft);
+                await saveEdit(session.id, session.enabled, draft);
             }
             go({page: "hotkeys"});
             resetForm();
@@ -175,7 +174,7 @@ export function mountEditorPage(service: HotkeysService, dom: EditorDomRefs) {
                 return;
             }
 
-            session = {kind: "edit", id};
+            session = {kind: "edit", id, enabled: true};
             applyChrome();
 
             try {
@@ -185,6 +184,7 @@ export function mountEditorPage(service: HotkeysService, dom: EditorDomRefs) {
                     setError(dom.errorEl, "Хоткей не найден.");
                     return;
                 }
+                session = {kind: "edit", id: found.id, enabled: found.enabled};
                 fill(found);
             } catch (err) {
                 resetForm();

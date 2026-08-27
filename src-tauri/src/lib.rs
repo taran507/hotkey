@@ -1,15 +1,13 @@
 use crate::infra::configs::JsonShortcutRepository;
 use crate::infra::launcher::Launcher;
 use crate::infra::registry::TauriHotkeyRegistry;
-use crate::interfaces::tauri_command;
+use crate::interfaces::{tauri_command, tauri_hotkey};
 use std::sync::{mpsc, Arc};
 use tauri;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::Manager;
 use tauri_plugin_autostart::MacosLauncher;
-use tauri_plugin_global_shortcut::ShortcutState;
-use tracing::error;
 
 const AUTOSTART_ARG: &str = "--autostart";
 
@@ -79,7 +77,7 @@ fn setup_close_event(window: &tauri::Window, event: &tauri::WindowEvent) {
 pub fn run() {
     let (tx, rx) = mpsc::channel::<u32>();
 
-    let app = tauri::Builder::default()
+    tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_autostart::init(
@@ -88,13 +86,7 @@ pub fn run() {
         ))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
-                .with_handler(move |_app, shortcut, event| {
-                    if event.state() != ShortcutState::Pressed {
-                        return;
-                    }
-
-                    let _ = tx.send(shortcut.id);
-                })
+                .with_handler(tauri_hotkey::hotkey_handler(tx))
                 .build(),
         )
         .on_window_event(setup_close_event)
@@ -118,22 +110,13 @@ pub fn run() {
             );
 
             let launch = Arc::new(Launcher::new());
-            let application = app::App::new(repo, registry, launch)?;
+            let application = app::App::new(repo, registry.clone(), launch)?;
 
             let core = Arc::new(application);
 
             app.manage(tauri_command::AppState::new(core.clone()));
 
-            std::thread::Builder::new()
-                .name("hotkey-worker".into())
-                .spawn(move || {
-                    while let Ok(id) = rx.recv() {
-                        if let Err(e) = core.run_shortcut(&id) {
-                            error!("run shortcut: {e}");
-                        }
-                    }
-                })
-                .expect("spawn hotkey worker");
+            tauri_hotkey::spawn_worker(rx, core.clone(), registry);
 
             Ok(())
         })

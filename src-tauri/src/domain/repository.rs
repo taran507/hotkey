@@ -26,6 +26,7 @@ pub enum RegistryError {
 pub trait HotkeyRegistry: Send + Sync {
     fn register(&self, id: &Uuid, combo: &Combo) -> Result<(), RegistryError>;
     fn unregister(&self, id: &Uuid) -> Result<(), RegistryError>;
+    fn resolve(&self, os_id: &u32) -> Option<Uuid>;
 }
 
 #[derive(Debug, Error)]

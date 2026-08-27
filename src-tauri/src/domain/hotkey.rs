@@ -66,13 +66,6 @@ pub struct Combo {
 }
 
 impl Combo {
-    pub fn id(&self) -> String {
-        format!(
-            "{}|ctrl:{}|alt:{}|shift:{}|logo:{}",
-            self.key.0, self.mods.ctrl, self.mods.alt, self.mods.shift, self.mods.logo
-        )
-    }
-
     pub fn validate(&self) -> Result<(), DomainError> {
         if self.key.0.trim().is_empty() {
             return Err(DomainError::EmptyKey);

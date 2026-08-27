@@ -17,8 +17,14 @@ export class HotkeysService {
         return this.api.delete(id);
     }
 
-    update(id: String, name: string, combo: Combo, action: Action): Promise<Shortcut> {
-        return this.api.update(id, name, combo, action)
+    update(
+        id: string,
+        name: string,
+        combo: Combo,
+        action: Action,
+        enabled: boolean,
+    ): Promise<Shortcut> {
+        return this.api.update(id, name, combo, action, enabled);
     }
 }
 

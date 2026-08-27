@@ -8,18 +8,20 @@ export interface HotkeysApi {
 
     delete(id: string): Promise<void>;
 
-    update(id: String, name: string, combo: Combo, action: Action): Promise<Shortcut>;
+    update(
+        id: string,
+        name: string,
+        combo: Combo,
+        action: Action,
+        enabled: boolean,
+    ): Promise<Shortcut>;
 }
 
 export const tauriHotkeysApi: HotkeysApi = {
     list: () => invoke<Shortcut[]>("list_shortcuts"),
     create: (name, combo, action) => invoke<Shortcut>("create_shortcut", {name, combo, action}),
     delete: (id) => invoke("delete_shortcut", {id}),
-    update: (id: String, name: string, combo: Combo, action: Action) => invoke("update_shortcut", {
-        id,
-        name,
-        combo,
-        action
-    }),
+    update: (id, name, combo, action, enabled) =>
+        invoke<Shortcut>("update_shortcut", {id, name, combo, action, enabled}),
 };
 

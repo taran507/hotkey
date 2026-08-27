@@ -28,19 +28,11 @@ export function mountHotkeysPage(service: HotkeysService, dom: HotkeysDomRefs) {
           <div class="row-item" data-id="${s.id}">
             <div class="row-main">
               <div class="row-title">${title}</div>
-              <div class="row-edit">
-                <input class="rename-input" value="${s.name}" />
-                <button class="btn-save-name" type="button">Сохранить</button>
-              </div>
               <div class="row-sub muted">${comboToString(s.combo)}</div>
               <div class="row-sub muted">${actionToText(s.action)}</div>
 <!--              <div class="row-sub muted id">${s.id}</div>-->
             </div>
             <div class="row-controls">
-              <label class="toggle">
-                <input class="toggle-enabled" type="checkbox" ${s.enabled ? "checked" : ""} />
-                <span>enabled</span>
-              </label>
               <button class="btn-edit" type="button">Изменить</button>
               <button class="btn-danger btn-delete" type="button">Удалить</button>
             </div>
@@ -53,33 +45,6 @@ export function mountHotkeysPage(service: HotkeysService, dom: HotkeysDomRefs) {
 
     dom.listEl.querySelectorAll<HTMLElement>(".row-item").forEach((row) => {
       const id = row.dataset.id!;
-
-      row.querySelector<HTMLButtonElement>(".btn-save-name")?.addEventListener("click", async () => {
-        const nextName = row.querySelector<HTMLInputElement>(".rename-input")?.value.trim() ?? "";
-        if (!nextName) {
-          setError(dom.listErrorEl, "Название не должно быть пустым.");
-          return;
-        }
-
-        try {
-          await service.rename(id, nextName);
-          setError(dom.listErrorEl, null);
-          await refreshList();
-        } catch (err) {
-          setError(dom.listErrorEl, String(err));
-        }
-      });
-
-      row.querySelector<HTMLInputElement>(".toggle-enabled")?.addEventListener("change", async (e) => {
-        const checked = (e.target as HTMLInputElement).checked;
-        try {
-          await service.setEnabled(id, checked);
-          await refreshList();
-        } catch (err) {
-          console.error(err);
-          await refreshList();
-        }
-      });
 
       row.querySelector<HTMLButtonElement>(".btn-edit")?.addEventListener("click", () => {
         go({page: "editor", id});
