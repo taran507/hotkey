@@ -3,6 +3,7 @@ use crate::domain::repository::{HotkeyRegistry, Launcher, RegistryError, Shortcu
 use std::sync::Arc;
 use thiserror::Error;
 use tracing::error;
+use uuid::Uuid;
 
 #[derive(Debug, Error)]
 pub enum CreateError {
@@ -19,7 +20,8 @@ pub enum CreateError {
 pub enum EditError {
     #[error("Комбинации не существует")]
     NotFound,
-
+    #[error("Невалидная команда")]
+    Invalid,
     #[error("Неизвестная ошибка: {0}")]
     Internal(String),
 }
@@ -76,7 +78,8 @@ impl App {
 
         Ok(shortcut)
     }
-    pub fn delete_shortcut(&self, id: &str) -> Result<(), EditError> {
+
+    pub fn delete_shortcut(&self, id: Uuid) -> Result<(), EditError> {
         if self
             .repo
             .get(&id)
@@ -87,7 +90,7 @@ impl App {
         }
 
         self.registry
-            .unregister(id)
+            .unregister(&id)
             .map_err(|e| EditError::Internal(e.to_string()))?;
 
         self.repo
@@ -97,45 +100,40 @@ impl App {
         Ok(())
     }
 
-    pub fn set_enable_shortcut(&self, id: &str, enabled: bool) -> Result<(), EditError> {
+    pub fn update_shortcut(
+        &self,
+        id: Uuid,
+        name: String,
+        combo: Combo,
+        action: Action,
+        enabled: bool,
+    ) -> Result<Shortcut, EditError> {
         let mut shortcut = self
             .repo
             .get(&id)
             .map_err(|e| EditError::Internal(e.to_string()))?
             .ok_or(EditError::NotFound)?;
 
-        shortcut.enabled = enabled;
+        self.registry
+            .unregister(&shortcut.id)
+            .map_err(|e| EditError::Internal(e.to_string()))?;
+
+        shortcut
+            .update(name, combo, action, enabled)
+            .map_err(|_| EditError::Invalid)?;
 
         let rollback = self
             .register_shortcut(&shortcut)
             .map_err(|e| EditError::Internal(e.to_string()))?;
 
-        if let Err(e) = self.repo.save(&shortcut) {
+        self.repo.save(&shortcut).map_err(|e| {
             if let Err(e) = rollback() {
-                error!("откат изменений: {e}")
+                error!("отмена регистрации: {e}")
             };
-            return Err(EditError::Internal(e.to_string()));
-        };
+            EditError::Internal(e.to_string())
+        })?;
 
-        Ok(())
-    }
-
-    pub fn rename_shortcut(&self, id: &str, name: String) -> Result<(), EditError> {
-        let mut shortcut = self
-            .repo
-            .get(id)
-            .map_err(|e| EditError::Internal(e.to_string()))?
-            .ok_or(EditError::NotFound)?;
-
-        shortcut
-            .rename(name)
-            .map_err(|e| EditError::Internal(e.to_string()))?;
-
-        self.repo
-            .save(&shortcut)
-            .map_err(|e| EditError::Internal(e.to_string()))?;
-
-        Ok(())
+        Ok(shortcut)
     }
 
     fn register_shortcut(
@@ -195,7 +193,7 @@ impl App {
         Ok(())
     }
 
-    pub fn run_shortcut(&self, id: &str) -> Result<(), String> {
+    pub fn run_shortcut(&self, id: &Uuid) -> Result<(), String> {
         let shortcut = self
             .repo
             .get(id)

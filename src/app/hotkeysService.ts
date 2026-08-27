@@ -1,27 +1,24 @@
-import type { Action, Combo, Shortcut } from "../domain/hotkey";
-import type { HotkeysApi } from "../infra/hotkeysApi";
+import type {Action, Combo, Shortcut} from "../domain/hotkey";
+import type {HotkeysApi} from "../infra/hotkeysApi";
 
 export class HotkeysService {
-  constructor(private readonly api: HotkeysApi) {}
+    constructor(private readonly api: HotkeysApi) {
+    }
 
-  list(): Promise<Shortcut[]> {
-    return this.api.list();
-  }
+    list(): Promise<Shortcut[]> {
+        return this.api.list();
+    }
 
-  create(name: string, combo: Combo, action: Action): Promise<Shortcut> {
-    return this.api.create(name, combo, action);
-  }
+    create(name: string, combo: Combo, action: Action): Promise<Shortcut> {
+        return this.api.create(name, combo, action);
+    }
 
-  delete(id: string): Promise<void> {
-    return this.api.delete(id);
-  }
+    delete(id: string): Promise<void> {
+        return this.api.delete(id);
+    }
 
-  setEnabled(id: string, enabled: boolean): Promise<void> {
-    return this.api.setEnabled(id, enabled);
-  }
-
-  rename(id: string, name: string): Promise<void> {
-    return this.api.rename(id, name);
-  }
+    update(id: String, name: string, combo: Combo, action: Action): Promise<Shortcut> {
+        return this.api.update(id, name, combo, action)
+    }
 }
 

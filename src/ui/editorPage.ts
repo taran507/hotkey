@@ -104,7 +104,7 @@ export function mountEditorPage(service: HotkeysService, dom: EditorDomRefs) {
         // Same page will persist combo/action here once update exists on the backend.
         void id;
         void draft;
-        throw new Error("Сохранение изменений пока не подключено.");
+        await service.update(id, draft.name, draft.combo, draft.action);
     }
 
     async function submit() {

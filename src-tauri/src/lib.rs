@@ -1,8 +1,6 @@
-use crate::domain::hotkey::ShortcutId;
 use crate::infra::configs::JsonShortcutRepository;
 use crate::infra::launcher::Launcher;
 use crate::infra::registry::TauriHotkeyRegistry;
-use crate::infra::tauri_adapter;
 use crate::interfaces::tauri_command;
 use std::sync::{mpsc, Arc};
 use tauri;
@@ -79,9 +77,9 @@ fn setup_close_event(window: &tauri::Window, event: &tauri::WindowEvent) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let (tx, rx) = mpsc::channel::<ShortcutId>();
+    let (tx, rx) = mpsc::channel::<u32>();
 
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_autostart::init(
@@ -95,11 +93,7 @@ pub fn run() {
                         return;
                     }
 
-                    let Some(combo) = tauri_adapter::shortcut_to_combo(&shortcut) else {
-                        return;
-                    };
-
-                    let _ = tx.send(combo.id());
+                    let _ = tx.send(shortcut.id);
                 })
                 .build(),
         )
@@ -108,12 +102,10 @@ pub fn run() {
             tauri_command::list_shortcuts,
             tauri_command::create_shortcut,
             tauri_command::delete_shortcut,
-            tauri_command::set_enable_shortcut,
-            tauri_command::rename_shortcut
+            tauri_command::update_shortcut,
         ])
         .setup(move |app| {
             setup_tray(app)?;
-
             if !launched_from_autostart() {
                 show_main_window(app.handle());
             }

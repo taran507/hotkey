@@ -2,6 +2,7 @@ use crate::app;
 use crate::domain::hotkey::{Action, Combo, Shortcut};
 use std::sync::Arc;
 use tauri::State;
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -33,26 +34,22 @@ pub fn create_shortcut(
 }
 
 #[tauri::command]
-pub fn delete_shortcut(state: State<'_, AppState>, id: String) -> Result<(), String> {
-    state.core.delete_shortcut(&id).map_err(|e| e.to_string())
+pub fn delete_shortcut(state: State<'_, AppState>, id: Uuid) -> Result<(), String> {
+    state.core.delete_shortcut(id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn set_enable_shortcut(
+pub fn update_shortcut(
     state: State<'_, AppState>,
-    id: String,
+    id: Uuid,
+    name: String,
+    combo: Combo,
+    action: Action,
     enabled: bool,
-) -> Result<(), String> {
+) -> Result<Shortcut, String> {
     state
         .core
-        .set_enable_shortcut(&id, enabled)
+        .update_shortcut(id, name, combo, action, enabled)
         .map_err(|e| e.to_string())
 }
 
-#[tauri::command]
-pub fn rename_shortcut(state: State<'_, AppState>, id: String, name: String) -> Result<(), String> {
-    state
-        .core
-        .rename_shortcut(&id, name)
-        .map_err(|e| e.to_string())
-}

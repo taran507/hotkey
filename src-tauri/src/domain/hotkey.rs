@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use thiserror::Error;
+use uuid::Uuid;
 
 #[derive(Debug, Error)]
 pub enum DomainError {
@@ -12,11 +13,9 @@ pub enum DomainError {
     NoModifier,
 }
 
-pub type ShortcutId = String;
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Shortcut {
-    pub id: ShortcutId,
+    pub id: Uuid,
     #[serde(default)]
     pub name: String,
     pub combo: Combo,
@@ -32,7 +31,7 @@ impl Shortcut {
 
         combo.validate()?;
         Ok(Self {
-            id: combo.id(),
+            id: Uuid::new_v4(),
             name,
             combo,
             action,
@@ -40,12 +39,22 @@ impl Shortcut {
         })
     }
 
-    pub fn rename(&mut self, name: String) -> Result<(), DomainError> {
+    pub fn update(
+        &mut self,
+        name: String,
+        combo: Combo,
+        action: Action,
+        enable: bool,
+    ) -> Result<(), DomainError> {
         if name.trim().is_empty() {
             return Err(DomainError::EmptyName);
         }
-
+        combo.validate()?;
         self.name = name;
+        self.combo = combo;
+        self.action = action;
+        self.enabled = enable;
+
         Ok(())
     }
 }

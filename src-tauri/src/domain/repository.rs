@@ -1,5 +1,6 @@
 use crate::domain::hotkey::{Action, Combo, Shortcut};
 use thiserror::Error;
+use uuid::Uuid;
 
 #[derive(Debug, Error)]
 pub enum RepoError {
@@ -8,10 +9,10 @@ pub enum RepoError {
 }
 
 pub trait ShortcutRepository: Send + Sync {
-    fn get(&self, id: &str) -> Result<Option<Shortcut>, RepoError>;
+    fn get(&self, id: &Uuid) -> Result<Option<Shortcut>, RepoError>;
     fn all(&self) -> Result<Vec<Shortcut>, RepoError>;
     fn save(&self, shortcut: &Shortcut) -> Result<(), RepoError>;
-    fn delete(&self, id: &str) -> Result<(), RepoError>;
+    fn delete(&self, id: &Uuid) -> Result<(), RepoError>;
 }
 
 #[derive(Debug, Error)]
@@ -23,8 +24,8 @@ pub enum RegistryError {
 }
 
 pub trait HotkeyRegistry: Send + Sync {
-    fn register(&self, id: &str, combo: &Combo) -> Result<(), RegistryError>;
-    fn unregister(&self, id: &str) -> Result<(), RegistryError>;
+    fn register(&self, id: &Uuid, combo: &Combo) -> Result<(), RegistryError>;
+    fn unregister(&self, id: &Uuid) -> Result<(), RegistryError>;
 }
 
 #[derive(Debug, Error)]
