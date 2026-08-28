@@ -9,8 +9,8 @@ export class HotkeysService {
         return this.api.list();
     }
 
-    create(name: string, combo: Combo, action: Action): Promise<Shortcut> {
-        return this.api.create(name, combo, action);
+    create(name: string, combo: Combo, action: Action, enabled: boolean): Promise<Shortcut> {
+        return this.api.create(name, combo, action, enabled);
     }
 
     delete(id: string): Promise<void> {

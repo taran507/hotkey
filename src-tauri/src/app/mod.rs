@@ -193,10 +193,15 @@ impl App {
         Ok(())
     }
 
-    pub fn run_shortcut(&self, id: &Uuid) -> Result<(), String> {
+    pub fn run_shortcut(&self, id: &u32) -> Result<(), String> {
+        let id = self
+            .registry
+            .resolve(id)
+            .ok_or("Не найдено сочетания клавиш".to_string())?;
+        
         let shortcut = self
             .repo
-            .get(id)
+            .get(&id)
             .map_err(|e| e.to_string())?
             .ok_or_else(|| "Комбинации не существует".to_string())?;
 

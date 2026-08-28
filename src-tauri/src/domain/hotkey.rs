@@ -21,6 +21,7 @@ pub struct Shortcut {
     pub combo: Combo,
     pub action: Action,
     pub enabled: bool,
+    pub create_at: i64,
 }
 
 impl Shortcut {
@@ -36,6 +37,7 @@ impl Shortcut {
             combo,
             action,
             enabled: true,
+            create_at: chrono::Utc::now().timestamp(),
         })
     }
 

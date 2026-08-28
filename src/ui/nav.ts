@@ -1,17 +1,11 @@
 export type Route =
     | { page: "hotkeys" }
-    | { page: "settings" }
     | { page: "editor"; id: string | null };
 
-const PAGE_IDS = ["hotkeys", "settings", "editor"] as const;
-
-function navTarget(route: Route): "hotkeys" | "settings" {
-    return route.page === "settings" ? "settings" : "hotkeys";
-}
+const PAGE_IDS = ["hotkeys", "editor"] as const;
 
 export function parseRoute(): Route {
     const raw = location.hash.replace(/^#\/?/, "");
-    if (raw === "settings") return {page: "settings"};
     if (raw === "editor" || raw.startsWith("editor/")) {
         const encoded = raw === "editor" ? "" : raw.slice("editor/".length);
         if (!encoded) return {page: "editor", id: null};
@@ -25,7 +19,6 @@ export function parseRoute(): Route {
 }
 
 export function hrefFor(route: Route): string {
-    if (route.page === "settings") return "#settings";
     if (route.page === "editor") {
         return route.id ? `#editor/${encodeURIComponent(route.id)}` : "#editor";
     }
@@ -44,23 +37,13 @@ export function mountNav(onChange?: (route: Route) => void) {
 
     const apply = () => {
         const route = parseRoute();
-        const activeNav = navTarget(route);
 
         for (const id of PAGE_IDS) {
             const active = route.page === id;
             document.querySelector(`[data-page="${id}"]`)?.classList.toggle("is-active", active);
-            document.querySelector(`[data-page-desc="${id}"]`)?.classList.toggle("is-active", active);
         }
 
-        for (const id of ["hotkeys", "settings"] as const) {
-            const nav = document.querySelector(`[data-nav="${id}"]`);
-            const active = id === activeNav;
-            nav?.classList.toggle("is-active", active);
-            if (nav instanceof HTMLElement) {
-                if (active) nav.setAttribute("aria-current", "page");
-                else nav.removeAttribute("aria-current");
-            }
-        }
+        document.querySelector("[data-add-hotkey]")?.classList.toggle("is-hidden", route.page !== "hotkeys");
 
         const key = route.page === "editor" ? `editor:${route.id ?? ""}` : route.page;
         if (current !== key) {

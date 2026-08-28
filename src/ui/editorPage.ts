@@ -10,11 +10,12 @@ export type ShortcutDraft = {
     name: string;
     combo: Combo;
     action: Action;
+    enabled: boolean;
 };
 
 type EditorSession =
     | { kind: "create" }
-    | { kind: "edit"; id: string; enabled: boolean };
+    | { kind: "edit"; id: string };
 
 function setError(el: HTMLElement, msg: string | null) {
     el.textContent = msg ?? "";
@@ -32,11 +33,9 @@ export function mountEditorPage(service: HotkeysService, dom: EditorDomRefs) {
         const editing = session.kind === "edit";
         dom.titleEl.textContent = editing ? "Редактировать хоткей" : "Новый хоткей";
         dom.submitBtn.textContent = editing ? "Сохранить" : "Добавить";
-        const desc = document.querySelector("[data-page-desc='editor']");
-        if (desc) {
-            desc.textContent = editing
-                ? "Измени поля и сохрани хоткей."
-                : "Заполни поля и добавь новый хоткей.";
+        dom.enabledInput.disabled = !editing;
+        if (!editing) {
+            dom.enabledInput.checked = true;
         }
     }
 
@@ -51,6 +50,7 @@ export function mountEditorPage(service: HotkeysService, dom: EditorDomRefs) {
         dom.nameInput.value = "";
         dom.programInput.value = "";
         dom.argsInput.value = "";
+        dom.enabledInput.checked = true;
         syncComboInput();
         setError(dom.errorEl, null);
     }
@@ -61,6 +61,7 @@ export function mountEditorPage(service: HotkeysService, dom: EditorDomRefs) {
         dom.nameInput.value = shortcut.name;
         dom.programInput.value = launch.program;
         dom.argsInput.value = formatArgs(launch.args);
+        dom.enabledInput.checked = shortcut.enabled;
         syncComboInput();
         setError(dom.errorEl, null);
     }
@@ -81,6 +82,7 @@ export function mountEditorPage(service: HotkeysService, dom: EditorDomRefs) {
         const program = dom.programInput.value.trim();
         const args = parseArgs(dom.argsInput.value);
         const combo = recorder.state.currentCombo;
+        const enabled = dom.enabledInput.checked;
 
         if (!name) {
             setError(dom.errorEl, "Укажи название комбинации.");
@@ -95,15 +97,15 @@ export function mountEditorPage(service: HotkeysService, dom: EditorDomRefs) {
             return null;
         }
 
-        return {name, combo, action: {Launch: {program, args}}};
+        return {name, combo, action: {Launch: {program, args}}, enabled};
     }
 
     async function saveCreate(draft: ShortcutDraft) {
-        await service.create(draft.name, draft.combo, draft.action);
+        await service.create(draft.name, draft.combo, draft.action, true);
     }
 
-    async function saveEdit(id: string, enabled: boolean, draft: ShortcutDraft) {
-        await service.update(id, draft.name, draft.combo, draft.action, enabled);
+    async function saveEdit(id: string, draft: ShortcutDraft) {
+        await service.update(id, draft.name, draft.combo, draft.action, draft.enabled);
     }
 
     async function submit() {
@@ -115,7 +117,7 @@ export function mountEditorPage(service: HotkeysService, dom: EditorDomRefs) {
             if (session.kind === "create") {
                 await saveCreate(draft);
             } else {
-                await saveEdit(session.id, session.enabled, draft);
+                await saveEdit(session.id, draft);
             }
             go({page: "hotkeys"});
             resetForm();
@@ -174,7 +176,7 @@ export function mountEditorPage(service: HotkeysService, dom: EditorDomRefs) {
                 return;
             }
 
-            session = {kind: "edit", id, enabled: true};
+            session = {kind: "edit", id};
             applyChrome();
 
             try {
@@ -184,7 +186,7 @@ export function mountEditorPage(service: HotkeysService, dom: EditorDomRefs) {
                     setError(dom.errorEl, "Хоткей не найден.");
                     return;
                 }
-                session = {kind: "edit", id: found.id, enabled: found.enabled};
+                session = {kind: "edit", id: found.id};
                 fill(found);
             } catch (err) {
                 resetForm();

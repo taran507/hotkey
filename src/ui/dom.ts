@@ -11,6 +11,7 @@ export type EditorDomRefs = {
   programInput: HTMLInputElement;
   programPickBtn: HTMLButtonElement;
   argsInput: HTMLInputElement;
+  enabledInput: HTMLInputElement;
   submitBtn: HTMLButtonElement;
   errorEl: HTMLElement;
 };
@@ -42,6 +43,7 @@ export function getEditorDomRefs(): EditorDomRefs {
     programInput: req<HTMLInputElement>("#program-input"),
     programPickBtn: req<HTMLButtonElement>("#program-pick-btn"),
     argsInput: req<HTMLInputElement>("#args-input"),
+    enabledInput: req<HTMLInputElement>("#enabled-input"),
     submitBtn: req<HTMLButtonElement>("#editor-submit"),
     errorEl: req<HTMLElement>("#editor-error"),
   };

@@ -9,6 +9,7 @@ use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::Manager;
 use tauri_plugin_autostart::MacosLauncher;
+use tracing::info;
 
 const AUTOSTART_ARG: &str = "--autostart";
 
@@ -105,9 +106,11 @@ pub fn run() {
 
             let registry = Arc::new(TauriHotkeyRegistry::new(app.handle().clone()));
 
-            let conf_path = app.path().app_config_dir()?.join("shortcuts.json");
             let repo = Arc::new(
-                JsonShortcutRepository::load_or_default(conf_path).map_err(|e| e.to_string())?,
+                JsonShortcutRepository::load_or_default(
+                    app.path().app_config_dir()?.join("shortcuts.json"),
+                )
+                    .map_err(|e| e.to_string())?,
             );
 
             let launch = Arc::new(Launcher::new());
@@ -116,8 +119,9 @@ pub fn run() {
 
             app.manage(tauri_command::AppState::new(core.clone()));
 
-            tauri_hotkey::spawn_worker(rx, core.clone(), registry);
+            tauri_hotkey::spawn_worker(rx, core.clone());
 
+            info!("setup");
             Ok(())
         })
         .run(tauri::generate_context!())
