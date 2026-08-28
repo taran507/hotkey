@@ -16,7 +16,10 @@
         "title": "hotkey",
         "width": 450,
         "height": 250,
-        "visible": false
+        "visible": false,
+        "minWidth": 400,
+        "minHeight": 200,
+        "alwaysOnTop": true
       }
     ],
     "security": {

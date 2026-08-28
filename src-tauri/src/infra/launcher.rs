@@ -2,7 +2,6 @@ use crate::domain::hotkey::Action;
 use crate::domain::repository;
 use crate::domain::repository::LaunchError;
 use std::process::Command;
-use tracing::info;
 
 pub struct Launcher {}
 
@@ -14,8 +13,6 @@ impl Launcher {
 
 impl repository::Launcher for Launcher {
     fn launch(&self, action: &Action) -> Result<(), LaunchError> {
-        info!("Launching action: {:?}", action);
-
         match action {
             Action::Launch { program, args } => {
                 let mut cmd = Command::new(program);

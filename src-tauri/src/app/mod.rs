@@ -2,7 +2,7 @@ use crate::domain::hotkey::{Action, Combo, Shortcut};
 use crate::domain::repository::{HotkeyRegistry, Launcher, RegistryError, ShortcutRepository};
 use std::sync::Arc;
 use thiserror::Error;
-use tracing::error;
+use tracing::{debug, error};
 use uuid::Uuid;
 
 #[derive(Debug, Error)]
@@ -76,6 +76,8 @@ impl App {
             return Err(CreateError::Internal(e.to_string()));
         }
 
+        debug!("create shortcut: {:?}", &shortcut);
+
         Ok(shortcut)
     }
 
@@ -97,6 +99,7 @@ impl App {
             .delete(&id)
             .map_err(|e| EditError::Internal(e.to_string()))?;
 
+        debug!("delete shortcut: {id}");
         Ok(())
     }
 
@@ -133,6 +136,8 @@ impl App {
             EditError::Internal(e.to_string())
         })?;
 
+        debug!("update shortcut: {:?}", &shortcut);
+
         Ok(shortcut)
     }
 
@@ -150,6 +155,8 @@ impl App {
         } else {
             registry.unregister(&id)?
         }
+
+        debug!("register shortcut: {:?}", &shortcut);
 
         Ok(Box::new(move || -> Result<(), RegistryError> {
             if enabled {
@@ -198,7 +205,7 @@ impl App {
             .registry
             .resolve(id)
             .ok_or("Не найдено сочетания клавиш".to_string())?;
-        
+
         let shortcut = self
             .repo
             .get(&id)
@@ -208,6 +215,8 @@ impl App {
         if !shortcut.enabled {
             return Ok(());
         }
+
+        debug!("run shortcut: {:?}", &shortcut);
 
         self.launch
             .launch(&shortcut.action)
