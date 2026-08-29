@@ -210,16 +210,18 @@ impl App {
             .repo
             .get(&id)
             .map_err(|e| e.to_string())?
-            .ok_or_else(|| "Комбинации не существует".to_string())?;
+            .ok_or("Комбинации не существует".to_string())?;
 
         if !shortcut.enabled {
             return Ok(());
         }
 
-        debug!("run shortcut: {:?}", &shortcut);
-
         self.launch
             .launch(&shortcut.action)
-            .map_err(|e| e.to_string())
+            .map_err(|e| e.to_string())?;
+
+        debug!("run shortcut: {:?}", &shortcut);
+
+        Ok(())
     }
 }
