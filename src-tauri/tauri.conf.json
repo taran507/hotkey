@@ -10,18 +10,8 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "withGlobalTauri": true,
-    "windows": [
-      {
-        "title": "hotkey",
-        "width": 450,
-        "height": 250,
-        "visible": false,
-        "minWidth": 400,
-        "minHeight": 200,
-        "alwaysOnTop": true
-      }
-    ],
+    "withGlobalTauri": false,
+    "windows": [],
     "security": {
       "csp": null
     }
@@ -38,7 +28,7 @@
     ],
     "windows": {
       "nsis": {
-        "installMode": "currentUser",
+        "installMode": "both",
         "displayLanguageSelector": false
       }
     }

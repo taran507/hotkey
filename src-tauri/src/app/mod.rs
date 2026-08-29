@@ -2,7 +2,6 @@ use crate::domain::hotkey::{Action, Combo, Shortcut};
 use crate::domain::repository::{HotkeyRegistry, Launcher, RegistryError, ShortcutRepository};
 use std::sync::Arc;
 use thiserror::Error;
-use tracing::{debug, error};
 use uuid::Uuid;
 
 #[derive(Debug, Error)]
@@ -43,7 +42,9 @@ impl App {
             registry,
             launch,
         };
-        app.register_all_shortcut()?;
+
+        app.register_all_shortcut()
+            .map_err(|e| format!("регистрация шорткатов: {e}"))?;
         Ok(app)
     }
 
@@ -70,13 +71,13 @@ impl App {
 
         if let Err(e) = self.repo.save(&shortcut) {
             if let Err(e) = rollback() {
-                error!("отмена регистрации: {e}")
+                log::error!("отмена регистрации: {e}")
             }
 
             return Err(CreateError::Internal(e.to_string()));
         }
 
-        debug!("create shortcut: {:?}", &shortcut);
+        log::debug!("create shortcut: {:?}", &shortcut);
 
         Ok(shortcut)
     }
@@ -99,7 +100,7 @@ impl App {
             .delete(&id)
             .map_err(|e| EditError::Internal(e.to_string()))?;
 
-        debug!("delete shortcut: {id}");
+        log::debug!("delete shortcut: {id}");
         Ok(())
     }
 
@@ -131,12 +132,12 @@ impl App {
 
         self.repo.save(&shortcut).map_err(|e| {
             if let Err(e) = rollback() {
-                error!("отмена регистрации: {e}")
+                log::error!("отмена регистрации: {e}")
             };
             EditError::Internal(e.to_string())
         })?;
 
-        debug!("update shortcut: {:?}", &shortcut);
+        log::debug!("update shortcut: {:?}", &shortcut);
 
         Ok(shortcut)
     }
@@ -156,7 +157,7 @@ impl App {
             registry.unregister(&id)?
         }
 
-        debug!("register shortcut: {:?}", &shortcut);
+        log::debug!("register shortcut: {:?}", &shortcut);
 
         Ok(Box::new(move || -> Result<(), RegistryError> {
             if enabled {
@@ -189,7 +190,7 @@ impl App {
                     // если произошла ошибка, проходимся по списку и откатываем все регистрации.
                     for rollback in rollback_list {
                         if let Err(e) = rollback() {
-                            error!("откат транзакции: {e}")
+                            log::error!("откат транзакции: {e}")
                         }
                     }
                     return Err(e.to_string());
@@ -220,7 +221,7 @@ impl App {
             .launch(&shortcut.action)
             .map_err(|e| e.to_string())?;
 
-        debug!("run shortcut: {:?}", &shortcut);
+        log::debug!("run shortcut: {:?}", &shortcut);
 
         Ok(())
     }

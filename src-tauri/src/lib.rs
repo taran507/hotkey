@@ -1,18 +1,17 @@
 use crate::infra::configs::JsonShortcutRepository;
 use crate::infra::launcher::Launcher;
 use crate::infra::registry::TauriHotkeyRegistry;
-use crate::interfaces::{tauri_command, tauri_hotkey};
+use crate::interfaces::tauri_command;
 use app::App;
+use serde_json::to_string;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::Receiver;
-use std::sync::{mpsc, Arc};
+use std::sync::Arc;
 use tauri;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::Manager;
+use tauri::{Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_autostart::MacosLauncher;
-use tracing::debug;
-use tracing_subscriber::fmt;
+use tauri_plugin_log::{Target, TargetKind};
 
 const AUTOSTART_ARG: &str = "--autostart";
 static IS_QUITTING: AtomicBool = AtomicBool::new(false);
@@ -39,11 +38,7 @@ fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         .show_menu_on_left_click(false)
         .on_menu_event(move |app, event| match event.id().as_ref() {
             "show" => show_main_window(app),
-            "hide" => {
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.hide();
-                }
-            }
+            "hide" => hide_main_window(app),
             "quit" => quit_app(app),
             _ => {}
         })
@@ -73,6 +68,27 @@ fn show_main_window(app: &tauri::AppHandle) {
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
+        return;
+    }
+
+    match WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+        .title("hotkey")
+        .inner_size(450.0, 300.0)
+        .min_inner_size(400.0, 300.0)
+        .always_on_top(false)
+        .visible(true)
+        .build()
+    {
+        Ok(window) => {
+            let _ = window.set_focus();
+        }
+        Err(e) => log::error!("failed to create main window: {e}"),
+    }
+}
+
+fn hide_main_window(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.destroy();
     }
 }
 
@@ -80,71 +96,68 @@ fn launched_from_autostart() -> bool {
     std::env::args().any(|arg| arg == AUTOSTART_ARG)
 }
 
-fn setup_close_event(window: &tauri::Window, event: &tauri::WindowEvent) {
-    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-        if IS_QUITTING.load(Ordering::SeqCst) {
-            return;
-        }
-        api.prevent_close();
-        let _ = window.hide();
-    }
-}
+fn setup_core(app: &mut tauri::App /*rx: Receiver<u32>*/) -> Result<(), String> {
+    let config_path = app
+        .path()
+        .app_config_dir()
+        .map_err(|e| format!("получение папки конфигов: {e}"))?
+        .join("shortcuts.json");
 
-fn setup_app(app: &mut tauri::App, rx: Receiver<u32>) -> Result<(), Box<dyn std::error::Error>> {
-    let registry = Arc::new(TauriHotkeyRegistry::new(app.handle().clone()));
+    let repo = JsonShortcutRepository::load_or_default(config_path).map_err(|e| e.to_string())?;
 
-    let repo = Arc::new(
-        JsonShortcutRepository::load_or_default(
-            app.path().app_config_dir()?.join("shortcuts.json"),
-        )
-        .map_err(|e| e.to_string())?,
-    );
+    let registry = TauriHotkeyRegistry::new(app.handle().clone());
+    let launch = Launcher::new();
 
-    let launch = Arc::new(Launcher::new());
+    let core = App::new(Arc::new(repo), Arc::new(registry), Arc::new(launch))?;
 
-    let core = Arc::new(App::new(repo, registry.clone(), launch)?);
-
-    app.manage(tauri_command::AppState::new(core.clone()));
-
-    tauri_hotkey::spawn_worker(rx, core.clone());
+    app.manage(core);
     Ok(())
 }
 
 fn setup_logger(app: &mut tauri::App) {
-    let builder = fmt()
-        .json()
-        .with_target(false)
-        .with_file(true)
-        .with_line_number(true);
-
-    let Ok(log_dir) = app.path().app_log_dir() else {
-        builder.init();
-        return;
-    };
-
-    if std::fs::create_dir_all(&log_dir).is_err() {
-        builder.init();
-        return;
-    }
-
-    let log_path = log_dir.join("hotkey.log");
-    let Ok(file) = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(log_path)
-    else {
-        builder.init();
-        return;
-    };
-
-    builder.with_writer(std::sync::Mutex::new(file)).init();
+    // let builder = fmt()
+    //     .json()
+    //     .with_target(false)
+    //     .with_file(true)
+    //     .with_line_number(true);
+    //
+    // let Ok(log_dir) = app.path().app_log_dir() else {
+    //     builder.init();
+    //     return;
+    // };
+    //
+    // if std::fs::create_dir_all(&log_dir).is_err() {
+    //     builder.init();
+    //     return;
+    // }
+    //
+    // let log_path = log_dir.join("hotkey.log");
+    // let Ok(file) = std::fs::OpenOptions::new()
+    //     .create(true)
+    //     .append(true)
+    //     .open(log_path)
+    // else {
+    //     builder.init();
+    //     return;
+    // };
+    //
+    // builder.with_writer(std::sync::Mutex::new(file)).init();
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let (tx, rx) = mpsc::channel::<u32>();
-
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .level(log::LevelFilter::Debug)
+                .targets([
+                    Target::new(TargetKind::Stdout),
+                    Target::new(TargetKind::LogDir {
+                        file_name: Some("logs".to_string()),
+                    }),
+                ])
+                .build(),
+        )
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_autostart::init(
@@ -153,10 +166,9 @@ pub fn run() {
         ))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
-                .with_handler(tauri_hotkey::hotkey_handler(tx))
+                .with_handler(tauri_command::hotkey_handler)
                 .build(),
         )
-        .on_window_event(setup_close_event)
         .invoke_handler(tauri::generate_handler![
             tauri_command::list_shortcuts,
             tauri_command::create_shortcut,
@@ -164,17 +176,26 @@ pub fn run() {
             tauri_command::update_shortcut,
         ])
         .setup(move |app| {
-            setup_tray(app)?;
+            setup_logger(app);
+
             if !launched_from_autostart() {
                 show_main_window(app.handle());
             }
-            setup_logger(app);
 
-            setup_app(app, rx)?;
+            setup_tray(app)?;
 
-            debug!("setup");
+            setup_core(app)?;
+            log::debug!("setup");
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(|_app, event| {
+        if let RunEvent::ExitRequested { api, .. } = event {
+            if !IS_QUITTING.load(Ordering::SeqCst) {
+                api.prevent_exit();
+            }
+        }
+    });
 }
