@@ -47,8 +47,33 @@ fn hide_main_window(app: &tauri::AppHandle) {
     }
 }
 
+fn quit_application(app: &tauri::AppHandle) {
+    app.exit(0)
+}
+
 fn launched_from_autostart() -> bool {
     std::env::args().any(|arg| arg == AUTOSTART_ARG)
+}
+
+fn setup_plugin(app: &tauri::AppHandle) -> tauri::Result<()> {
+    app.plugin(
+        tauri_plugin_log::Builder::new()
+            .level(log::LevelFilter::Debug)
+            .build(),
+    )?;
+    app.plugin(tauri_plugin_dialog::init())?;
+    app.plugin(tauri_plugin_opener::init())?;
+    app.plugin(tauri_plugin_autostart::init(
+        MacosLauncher::LaunchAgent,
+        Some(vec![AUTOSTART_ARG]),
+    ))?;
+    app.plugin(
+        tauri_plugin_global_shortcut::Builder::new()
+            .with_handler(tauri_command::hotkey_handler)
+            .build(),
+    )?;
+
+    Ok(())
 }
 
 // Настройка сворачивания в трей.
@@ -69,7 +94,7 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
         .on_menu_event(move |app, event| match event.id().as_ref() {
             "show" => show_main_window(app),
             "hide" => hide_main_window(app),
-            "quit" => app.exit(0),
+            "quit" => quit_application(app),
             _ => {}
         })
         .on_tray_icon_event(move |tray, event| match event {
@@ -89,10 +114,9 @@ fn setup_core(app: &mut tauri::App) -> Result<(), String> {
     let config_path = app
         .path()
         .app_config_dir()
-        .map_err(|e| format!("получение папки конфигов: {e}"))?
-        .join("shortcuts.json");
+        .map_err(|e| format!("получение папки конфигов: {e}"))?;
 
-    let repo = JsonShortcutRepository::load_or_default(config_path)
+    let repo = JsonShortcutRepository::load_or_default(config_path.join("shortcuts.json"))
         .map_err(|e| format!("загрузка конфига: {e}"))?;
 
     let registry = TauriHotkeyRegistry::new(app.handle().clone());
@@ -108,22 +132,6 @@ fn setup_core(app: &mut tauri::App) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
-        .plugin(
-            tauri_plugin_log::Builder::new()
-                .level(log::LevelFilter::Debug)
-                .build(),
-        )
-        .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_autostart::init(
-            MacosLauncher::LaunchAgent,
-            Some(vec![AUTOSTART_ARG]),
-        ))
-        .plugin(
-            tauri_plugin_global_shortcut::Builder::new()
-                .with_handler(tauri_command::hotkey_handler)
-                .build(),
-        )
         .invoke_handler(tauri::generate_handler![
             tauri_command::list_shortcuts,
             tauri_command::create_shortcut,
@@ -131,14 +139,16 @@ pub fn run() {
             tauri_command::update_shortcut,
         ])
         .setup(move |app| {
+            setup_plugin(app.handle()).map_err(|e| format!("настройка плагинов: {e}"))?;
+            setup_tray(app).map_err(|e| format!("настройка трея: {e}"))?;
+            setup_core(app).map_err(|e| format!("настройка ядра приложения: {e}"))?;
+
+            log::debug!("setup");
+
             if !launched_from_autostart() {
                 show_main_window(app.handle());
             }
 
-            setup_tray(app)?;
-
-            setup_core(app)?;
-            log::debug!("setup");
             Ok(())
         })
         .build(tauri::generate_context!())
@@ -152,7 +162,6 @@ pub fn run() {
         }
         RunEvent::ExitRequested { api, code, .. } => {
             if code.is_none() {
-                log::debug!("prevent_exit");
                 api.prevent_exit();
             }
         }
