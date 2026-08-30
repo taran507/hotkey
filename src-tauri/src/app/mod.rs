@@ -36,16 +36,16 @@ impl App {
         repo: Arc<dyn ShortcutRepository>,
         registry: Arc<dyn HotkeyRegistry>,
         launch: Arc<dyn Launcher>,
-    ) -> Result<Self, String> {
+    ) -> Self {
         let app = Self {
             repo,
             registry,
             launch,
         };
 
-        app.register_all_shortcut()
-            .map_err(|e| format!("регистрация шорткатов: {e}"))?;
-        Ok(app)
+        app.register_all_shortcut();
+
+        app
     }
 
     pub fn create_shortcut(
@@ -172,33 +172,28 @@ impl App {
         self.repo.all().map_err(|e| e.to_string()) // todo(доработать ошибку)
     }
 
-    fn register_all_shortcut(&self) -> Result<(), String> {
-        let shortcut_list = self.list_shortcut()?;
-        let mut rollback_list = Vec::new();
+    fn register_all_shortcut(&self) {
+        let mut shortcut_list = match self.list_shortcut() {
+            Ok(list) => list,
+            Err(e) => {
+                log::error!("получение списка шорткатов: {e}");
+                return;
+            }
+        };
 
-        for shortcut in shortcut_list.iter() {
+        for shortcut in shortcut_list.iter_mut() {
             if !shortcut.enabled {
                 continue;
             }
             // регистрируем хоткей
-            match self.register_shortcut(shortcut) {
-                Ok(rollback) => {
-                    // если успешно зарегистрировали, добавим функцию отката в список
-                    rollback_list.push(rollback);
-                }
-                Err(e) => {
-                    // если произошла ошибка, проходимся по списку и откатываем все регистрации.
-                    for rollback in rollback_list {
-                        if let Err(e) = rollback() {
-                            log::error!("откат транзакции: {e}")
-                        }
-                    }
-                    return Err(e.to_string());
-                }
-            };
+            if let Err(e) = self.register_shortcut(shortcut) {
+                log::error!("регистрация шортката: {e}");
+                shortcut.enabled = false;
+                if let Err(e) = self.repo.save(&shortcut) {
+                    log::error!("сохранение шортката: {e}")
+                };
+            }
         }
-
-        Ok(())
     }
 
     pub fn run_shortcut(&self, id: &u32) -> Result<(), String> {

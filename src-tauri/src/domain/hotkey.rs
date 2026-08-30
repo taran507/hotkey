@@ -16,7 +16,6 @@ pub enum DomainError {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Shortcut {
     pub id: Uuid,
-    #[serde(default)]
     pub name: String,
     pub combo: Combo,
     pub action: Action,

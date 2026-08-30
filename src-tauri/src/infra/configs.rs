@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::RwLock;
+use tauri::{App, Manager};
 use uuid::Uuid;
 
 /// JSON file-backed repository (MVP storage).
@@ -14,7 +15,13 @@ pub struct JsonShortcutRepository {
 }
 
 impl JsonShortcutRepository {
-    pub fn load_or_default(path: PathBuf) -> Result<Self, RepoError> {
+    pub fn load_or_default(app: &App) -> Result<Self, RepoError> {
+        let path = app
+            .path()
+            .app_config_dir()
+            .map_err(|e| RepoError::Internal(e.to_string()))?
+            .join("shortcuts.json");
+
         let map = load_map(&path)?;
         Ok(Self {
             path,
@@ -66,10 +73,26 @@ fn load_map(path: &Path) -> Result<HashMap<Uuid, Shortcut>, RepoError> {
         Err(e) => return Err(RepoError::Internal(e.to_string())),
     };
 
-    let list: Vec<Shortcut> =
+    if bytes.iter().all(u8::is_ascii_whitespace) {
+        return Ok(HashMap::new());
+    }
+
+    let items: Vec<serde_json::Value> =
         serde_json::from_slice(&bytes).map_err(|e| RepoError::Internal(e.to_string()))?;
 
-    Ok(list.into_iter().map(|s| (s.id.clone(), s)).collect())
+    let mut map = HashMap::with_capacity(items.len());
+    for item in items {
+        match serde_json::from_value::<Shortcut>(item) {
+            Ok(shortcut) => {
+                map.insert(shortcut.id, shortcut);
+            }
+            Err(e) => {
+                log::warn!("пропуск невалидной записи конфига: {e}");
+            }
+        }
+    }
+
+    Ok(map)
 }
 
 fn persist_map(path: &Path, map: &HashMap<Uuid, Shortcut>) -> Result<(), RepoError> {

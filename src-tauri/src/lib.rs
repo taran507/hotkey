@@ -111,19 +111,13 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
 }
 
 fn setup_core(app: &mut tauri::App) -> Result<(), String> {
-    let config_path = app
-        .path()
-        .app_config_dir()
-        .map_err(|e| format!("получение папки конфигов: {e}"))?;
-
-    let repo = JsonShortcutRepository::load_or_default(config_path.join("shortcuts.json"))
+    let repo = JsonShortcutRepository::load_or_default(&app)
         .map_err(|e| format!("загрузка конфига: {e}"))?;
 
     let registry = TauriHotkeyRegistry::new(app.handle().clone());
     let launch = Launcher::new();
 
-    let core = App::new(Arc::new(repo), Arc::new(registry), Arc::new(launch))
-        .map_err(|e| format!("инициализация ядра: {e}"))?;
+    let core = App::new(Arc::new(repo), Arc::new(registry), Arc::new(launch));
 
     app.manage(core);
     Ok(())
