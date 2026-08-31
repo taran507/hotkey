@@ -1,8 +1,8 @@
 use crate::domain::hotkey::Combo;
-use crate::domain::repository::{HotkeyRegistry, RegistryError};
+use crate::domain::repository::{HotkeyRegistry, RegistryError, SystemResolver};
 use std::collections::HashMap;
 use std::str::FromStr;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::AppHandle;
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut};
 use uuid::Uuid;
@@ -10,22 +10,26 @@ use uuid::Uuid;
 pub struct TauriHotkeyRegistry {
     app: AppHandle,
     shortcuts: Mutex<HashMap<Uuid, Shortcut>>,
-    os_to_shortcut: Mutex<HashMap<u32, Uuid>>,
+    resolver: Arc<dyn SystemResolver>,
 }
 
 impl TauriHotkeyRegistry {
-    pub fn new(app: AppHandle) -> Self {
-        Self {
+    pub fn new(app: AppHandle, resolver: Arc<dyn SystemResolver>) -> Arc<Self> {
+        Arc::new(Self {
             app,
             shortcuts: Mutex::new(HashMap::new()),
-            os_to_shortcut: Mutex::new(HashMap::new()),
-        }
+            resolver,
+        })
     }
 }
 
 impl HotkeyRegistry for TauriHotkeyRegistry {
     fn register(&self, id: &Uuid, combo: &Combo) -> Result<(), RegistryError> {
         let shortcut = combo_to_shortcut(combo).ok_or(RegistryError::InvalidShortcut)?;
+
+        if self.app.global_shortcut().is_registered(shortcut.clone()) {
+            return Err(RegistryError::AlreadyExist);
+        }
 
         self.app
             .global_shortcut()
@@ -37,10 +41,9 @@ impl HotkeyRegistry for TauriHotkeyRegistry {
             .map_err(|e| RegistryError::Internal(e.to_string()))?
             .insert(id.clone(), shortcut.clone());
 
-        self.os_to_shortcut
-            .lock()
-            .map_err(|e| RegistryError::Internal(e.to_string()))?
-            .insert(shortcut.id, id.clone());
+        self.resolver
+            .add(shortcut.id, id.clone())
+            .map_err(|e| RegistryError::Internal(e.to_string()))?;
 
         Ok(())
     }
@@ -67,16 +70,11 @@ impl HotkeyRegistry for TauriHotkeyRegistry {
             .map_err(|e| RegistryError::Internal(e.to_string()))?
             .remove(id);
 
-        self.os_to_shortcut
-            .lock()
-            .map_err(|e| RegistryError::Internal(e.to_string()))?
-            .remove(&shortcut.id);
+        self.resolver
+            .remove(&shortcut.id)
+            .map_err(|e| RegistryError::Internal(e.to_string()))?;
 
         Ok(())
-    }
-
-    fn resolve(&self, os_id: &u32) -> Option<Uuid> {
-        self.os_to_shortcut.lock().ok()?.get(os_id).cloned()
     }
 }
 

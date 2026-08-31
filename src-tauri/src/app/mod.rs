@@ -1,34 +1,38 @@
 use crate::domain::hotkey::{Action, Combo, Shortcut};
-use crate::domain::repository::{HotkeyRegistry, Launcher, RegistryError, ShortcutRepository};
+use crate::domain::repository::{
+    HotkeyRegistry, Launcher, RegistryError, ShortcutRepository, SystemResolver,
+};
 use std::sync::Arc;
 use thiserror::Error;
 use uuid::Uuid;
 
 #[derive(Debug, Error)]
-pub enum CreateError {
+pub enum AppError {
+    #[error("Комбинации не существует")]
+    NotFound,
     #[error("невалидное сочетание")]
     InvalidShortcut,
     #[error("сочетание уже существует")]
     AlreadyExist,
-
     #[error("Неизвестная ошибка: {0}")]
     Internal(String),
 }
 
-#[derive(Debug, Error)]
-pub enum EditError {
-    #[error("Комбинации не существует")]
-    NotFound,
-    #[error("Невалидная команда")]
-    Invalid,
-    #[error("Неизвестная ошибка: {0}")]
-    Internal(String),
+impl From<RegistryError> for AppError {
+    fn from(e: RegistryError) -> Self {
+        match e {
+            RegistryError::InvalidShortcut => Self::InvalidShortcut,
+            RegistryError::AlreadyExist => Self::AlreadyExist,
+            RegistryError::Internal(_) => Self::Internal(e.to_string()),
+        }
+    }
 }
 
 pub struct App {
     repo: Arc<dyn ShortcutRepository>,
     registry: Arc<dyn HotkeyRegistry>,
     launch: Arc<dyn Launcher>,
+    resolver: Arc<dyn SystemResolver>,
 }
 
 impl App {
@@ -36,11 +40,13 @@ impl App {
         repo: Arc<dyn ShortcutRepository>,
         registry: Arc<dyn HotkeyRegistry>,
         launch: Arc<dyn Launcher>,
+        resolver: Arc<dyn SystemResolver>,
     ) -> Self {
         let app = Self {
             repo,
             registry,
             launch,
+            resolver,
         };
 
         app.register_all_shortcut();
@@ -53,28 +59,17 @@ impl App {
         name: String,
         combo: Combo,
         action: Action,
-    ) -> Result<Shortcut, CreateError> {
-        let shortcut =
-            Shortcut::new(name, combo, action).map_err(|_| CreateError::InvalidShortcut)?;
-        if self
-            .repo
-            .get(&shortcut.id)
-            .map_err(|e| CreateError::Internal(e.to_string()))?
-            .is_some()
-        {
-            return Err(CreateError::AlreadyExist);
-        }
+    ) -> Result<Shortcut, AppError> {
+        let shortcut = Shortcut::new(name, combo, action).map_err(|_| AppError::InvalidShortcut)?;
 
-        let rollback = self
-            .register_shortcut(&shortcut)
-            .map_err(|e| CreateError::Internal(e.to_string()))?;
+        let rollback = self.register_shortcut(&shortcut)?;
 
         if let Err(e) = self.repo.save(&shortcut) {
             if let Err(e) = rollback() {
                 log::error!("отмена регистрации: {e}")
             }
 
-            return Err(CreateError::Internal(e.to_string()));
+            return Err(AppError::Internal(e.to_string()));
         }
 
         log::debug!("create shortcut: {:?}", &shortcut);
@@ -82,23 +77,23 @@ impl App {
         Ok(shortcut)
     }
 
-    pub fn delete_shortcut(&self, id: Uuid) -> Result<(), EditError> {
+    pub fn delete_shortcut(&self, id: Uuid) -> Result<(), AppError> {
         if self
             .repo
             .get(&id)
-            .map_err(|_| EditError::Internal(id.to_string()))?
+            .map_err(|_| AppError::Internal(id.to_string()))?
             .is_none()
         {
-            return Err(EditError::NotFound);
+            return Err(AppError::NotFound);
         }
 
         self.registry
             .unregister(&id)
-            .map_err(|e| EditError::Internal(e.to_string()))?;
+            .map_err(|e| AppError::Internal(e.to_string()))?;
 
         self.repo
             .delete(&id)
-            .map_err(|e| EditError::Internal(e.to_string()))?;
+            .map_err(|e| AppError::Internal(e.to_string()))?;
 
         log::debug!("delete shortcut: {id}");
         Ok(())
@@ -111,30 +106,28 @@ impl App {
         combo: Combo,
         action: Action,
         enabled: bool,
-    ) -> Result<Shortcut, EditError> {
+    ) -> Result<Shortcut, AppError> {
         let mut shortcut = self
             .repo
             .get(&id)
-            .map_err(|e| EditError::Internal(e.to_string()))?
-            .ok_or(EditError::NotFound)?;
+            .map_err(|e| AppError::Internal(e.to_string()))?
+            .ok_or(AppError::NotFound)?;
 
         self.registry
             .unregister(&shortcut.id)
-            .map_err(|e| EditError::Internal(e.to_string()))?;
+            .map_err(|e| AppError::Internal(e.to_string()))?;
 
         shortcut
             .update(name, combo, action, enabled)
-            .map_err(|_| EditError::Invalid)?;
+            .map_err(|_| AppError::InvalidShortcut)?;
 
-        let rollback = self
-            .register_shortcut(&shortcut)
-            .map_err(|e| EditError::Internal(e.to_string()))?;
+        let rollback = self.register_shortcut(&shortcut)?;
 
         self.repo.save(&shortcut).map_err(|e| {
             if let Err(e) = rollback() {
                 log::error!("отмена регистрации: {e}")
             };
-            EditError::Internal(e.to_string())
+            AppError::Internal(e.to_string())
         })?;
 
         log::debug!("update shortcut: {:?}", &shortcut);
@@ -196,17 +189,18 @@ impl App {
         }
     }
 
-    pub fn run_shortcut(&self, id: &u32) -> Result<(), String> {
+    pub fn run_shortcut(&self, id: &u32) -> Result<(), AppError> {
         let id = self
-            .registry
+            .resolver
             .resolve(id)
-            .ok_or("Не найдено сочетания клавиш".to_string())?;
+            .map_err(|e| AppError::Internal(e.to_string()))?
+            .ok_or(AppError::NotFound)?;
 
         let shortcut = self
             .repo
             .get(&id)
-            .map_err(|e| e.to_string())?
-            .ok_or("Комбинации не существует".to_string())?;
+            .map_err(|e| AppError::Internal(e.to_string()))?
+            .ok_or(AppError::NotFound)?;
 
         if !shortcut.enabled {
             return Ok(());
@@ -214,7 +208,7 @@ impl App {
 
         self.launch
             .launch(&shortcut.action)
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| AppError::Internal(e.to_string()))?;
 
         log::debug!("run shortcut: {:?}", &shortcut);
 

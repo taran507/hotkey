@@ -3,7 +3,7 @@ use crate::domain::repository::{RepoError, ShortcutRepository};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 use tauri::{App, Manager};
 use uuid::Uuid;
 
@@ -15,7 +15,7 @@ pub struct JsonShortcutRepository {
 }
 
 impl JsonShortcutRepository {
-    pub fn load_or_default(app: &App) -> Result<Self, RepoError> {
+    pub fn load_or_default(app: &App) -> Result<Arc<Self>, RepoError> {
         let path = app
             .path()
             .app_config_dir()
@@ -23,10 +23,10 @@ impl JsonShortcutRepository {
             .join("shortcuts.json");
 
         let map = load_map(&path)?;
-        Ok(Self {
+        Ok(Arc::new(Self {
             path,
             by_id: RwLock::new(map),
-        })
+        }))
     }
 }
 

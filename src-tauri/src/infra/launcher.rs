@@ -2,12 +2,13 @@ use crate::domain::hotkey::Action;
 use crate::domain::repository;
 use crate::domain::repository::LaunchError;
 use std::process::Command;
+use std::sync::Arc;
 
 pub struct Launcher {}
 
 impl Launcher {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new() -> Arc<Self> {
+        Arc::new(Self {})
     }
 }
 

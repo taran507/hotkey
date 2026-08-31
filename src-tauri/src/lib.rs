@@ -1,9 +1,10 @@
+use crate::domain::hotkey::{Action, Combo, Mods, PhysicalKey};
 use crate::infra::configs::JsonShortcutRepository;
 use crate::infra::launcher::Launcher;
 use crate::infra::registry::TauriHotkeyRegistry;
+use crate::infra::resolver;
 use crate::interfaces::tauri_command;
 use app::App;
-use std::sync::Arc;
 use tauri;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -113,11 +114,35 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
 fn setup_core(app: &mut tauri::App) -> Result<(), String> {
     let repo = JsonShortcutRepository::load_or_default(&app)
         .map_err(|e| format!("загрузка конфига: {e}"))?;
+    let resolver = resolver::Resolver::new();
 
-    let registry = TauriHotkeyRegistry::new(app.handle().clone());
+    let registry = TauriHotkeyRegistry::new(app.handle().clone(), resolver.clone());
     let launch = Launcher::new();
 
-    let core = App::new(Arc::new(repo), Arc::new(registry), Arc::new(launch));
+    let core = App::new(repo, registry, launch, resolver);
+
+    let combo = Combo {
+        key: PhysicalKey("KeyR".to_string()),
+        mods: Mods {
+            ctrl: true,
+            alt: true,
+            logo: false,
+            shift: false,
+        },
+    };
+
+    let action = Action::Launch {
+        program: "".into(),
+        args: Vec::new(),
+    };
+
+    if let Err(e) = core.create_shortcut("test1".to_string(), combo.clone(), action.clone()) {
+        log::error!("create shortcut failed: {e}");
+    };
+
+    if let Err(e) = core.create_shortcut("test2".to_string(), combo.clone(), action.clone()) {
+        log::error!("create shortcut2 failed: {e}");
+    };
 
     app.manage(core);
     Ok(())
