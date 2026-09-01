@@ -1,4 +1,4 @@
-use crate::domain::hotkey::{Action, Combo, Shortcut};
+use crate::domain::hotkey::{Action, Combo, DomainError, Shortcut};
 use crate::domain::repository::{
     HotkeyRegistry, Launcher, RegistryError, ShortcutRepository, SystemResolver,
 };
@@ -10,18 +10,23 @@ use uuid::Uuid;
 pub enum AppError {
     #[error("Комбинации не существует")]
     NotFound,
-    #[error("невалидное сочетание")]
-    InvalidShortcut,
+    #[error("Невалидное сочетание")]
+    InvalidData(String),
     #[error("сочетание уже существует")]
     AlreadyExist,
     #[error("Неизвестная ошибка: {0}")]
     Internal(String),
 }
+impl From<DomainError> for AppError {
+    fn from(value: DomainError) -> Self {
+        Self::InvalidData(value.to_string())
+    }
+}
 
 impl From<RegistryError> for AppError {
     fn from(e: RegistryError) -> Self {
         match e {
-            RegistryError::InvalidShortcut => Self::InvalidShortcut,
+            RegistryError::InvalidShortcut => Self::InvalidData(e.to_string()),
             RegistryError::AlreadyExist => Self::AlreadyExist,
             RegistryError::Internal(_) => Self::Internal(e.to_string()),
         }
@@ -60,7 +65,7 @@ impl App {
         combo: Combo,
         action: Action,
     ) -> Result<Shortcut, AppError> {
-        let shortcut = Shortcut::new(name, combo, action).map_err(|_| AppError::InvalidShortcut)?;
+        let shortcut = Shortcut::new(name, combo, action)?;
 
         self.registry.register(&shortcut.id, &shortcut.combo)?;
 
@@ -119,9 +124,7 @@ impl App {
             .unregister(&shortcut.id)
             .map_err(|e| AppError::Internal(e.to_string()))?;
 
-        shortcut
-            .update(name, combo, action, enabled)
-            .map_err(|_| AppError::InvalidShortcut)?;
+        shortcut.update(name, combo, action, enabled)?;
 
         self.registry.register(&shortcut.id, &shortcut.combo)?;
 
