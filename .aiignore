@@ -9,6 +9,8 @@
 # or folders
 dist/
 build/
+src-tauri/target/
+src-tauri/gen/
 out/
 node_modules/
 .vscode/

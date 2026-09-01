@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 #[tauri::command]
 pub fn list_shortcuts(state: State<'_, App>) -> Result<Vec<Shortcut>, String> {
-    state.list_shortcut()
+    state.list_shortcut().map_err(|e| e.to_string())
 }
 
 #[tauri::command]

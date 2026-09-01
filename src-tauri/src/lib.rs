@@ -44,7 +44,9 @@ fn show_main_window(app: &tauri::AppHandle) {
 
 fn hide_main_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
-        let _ = window.destroy();
+        if let Err(e) = window.destroy() {
+            log::warn!("закрытие окна: {e}");
+        };
     }
 }
 
@@ -121,29 +123,6 @@ fn setup_core(app: &mut tauri::App) -> Result<(), String> {
 
     let core = App::new(repo, registry, launch, resolver);
 
-    let combo = Combo {
-        key: PhysicalKey("KeyR".to_string()),
-        mods: Mods {
-            ctrl: true,
-            alt: true,
-            logo: false,
-            shift: false,
-        },
-    };
-
-    let action = Action::Launch {
-        program: "".into(),
-        args: Vec::new(),
-    };
-
-    if let Err(e) = core.create_shortcut("test1".to_string(), combo.clone(), action.clone()) {
-        log::error!("create shortcut failed: {e}");
-    };
-
-    if let Err(e) = core.create_shortcut("test2".to_string(), combo.clone(), action.clone()) {
-        log::error!("create shortcut2 failed: {e}");
-    };
-
     app.manage(core);
     Ok(())
 }
@@ -175,14 +154,10 @@ pub fn run() {
 
     app.run(|app, event| match event {
         RunEvent::Exit => {
-            for (_, window) in app.webview_windows() {
-                let _ = window.close();
-            }
+            hide_main_window(app);
         }
-        RunEvent::ExitRequested { api, code, .. } => {
-            if code.is_none() {
-                api.prevent_exit();
-            }
+        RunEvent::ExitRequested { api, code, .. } if code.is_none() => {
+            api.prevent_exit();
         }
         _ => {}
     });

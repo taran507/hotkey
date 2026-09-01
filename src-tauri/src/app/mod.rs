@@ -62,10 +62,10 @@ impl App {
     ) -> Result<Shortcut, AppError> {
         let shortcut = Shortcut::new(name, combo, action).map_err(|_| AppError::InvalidShortcut)?;
 
-        let rollback = self.register_shortcut(&shortcut)?;
+        self.registry.register(&shortcut.id, &shortcut.combo)?;
 
         if let Err(e) = self.repo.save(&shortcut) {
-            if let Err(e) = rollback() {
+            if let Err(e) = self.registry.unregister(&shortcut.id) {
                 log::error!("отмена регистрации: {e}")
             }
 
@@ -113,6 +113,8 @@ impl App {
             .map_err(|e| AppError::Internal(e.to_string()))?
             .ok_or(AppError::NotFound)?;
 
+        let backup = shortcut.clone();
+
         self.registry
             .unregister(&shortcut.id)
             .map_err(|e| AppError::Internal(e.to_string()))?;
@@ -121,11 +123,14 @@ impl App {
             .update(name, combo, action, enabled)
             .map_err(|_| AppError::InvalidShortcut)?;
 
-        let rollback = self.register_shortcut(&shortcut)?;
+        self.registry.register(&shortcut.id, &shortcut.combo)?;
 
         self.repo.save(&shortcut).map_err(|e| {
-            if let Err(e) = rollback() {
+            if let Err(e) = self.registry.unregister(&shortcut.id) {
                 log::error!("отмена регистрации: {e}")
+            };
+            if let Err(e) = self.registry.register(&backup.id, &backup.combo) {
+                log::error!("регистрация старого шортката: {e}")
             };
             AppError::Internal(e.to_string())
         })?;
@@ -135,34 +140,10 @@ impl App {
         Ok(shortcut)
     }
 
-    fn register_shortcut(
-        &self,
-        shortcut: &Shortcut,
-    ) -> Result<Box<dyn FnOnce() -> Result<(), RegistryError>>, RegistryError> {
-        let id = shortcut.id.clone();
-        let combo = shortcut.combo.clone();
-        let enabled = shortcut.enabled;
-        let registry = Arc::clone(&self.registry);
-
-        if enabled {
-            registry.register(&id, &combo)?
-        } else {
-            registry.unregister(&id)?
-        }
-
-        log::debug!("register shortcut: {:?}", &shortcut);
-
-        Ok(Box::new(move || -> Result<(), RegistryError> {
-            if enabled {
-                registry.unregister(&id)
-            } else {
-                registry.register(&id, &combo)
-            }
-        }))
-    }
-
-    pub fn list_shortcut(&self) -> Result<Vec<Shortcut>, String> {
-        self.repo.all().map_err(|e| e.to_string()) // todo(доработать ошибку)
+    pub fn list_shortcut(&self) -> Result<Vec<Shortcut>, AppError> {
+        self.repo
+            .all()
+            .map_err(|e| AppError::Internal(e.to_string()))
     }
 
     fn register_all_shortcut(&self) {
@@ -179,8 +160,8 @@ impl App {
                 continue;
             }
             // регистрируем хоткей
-            if let Err(e) = self.register_shortcut(shortcut) {
-                log::error!("регистрация шортката: {e}");
+            if let Err(e) = self.registry.register(&shortcut.id, &shortcut.combo) {
+                log::warn!("регистрация шортката: {e}");
                 shortcut.enabled = false;
                 if let Err(e) = self.repo.save(&shortcut) {
                     log::error!("сохранение шортката: {e}")
