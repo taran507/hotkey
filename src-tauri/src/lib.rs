@@ -1,4 +1,3 @@
-use crate::domain::hotkey::{Action, Combo, Mods, PhysicalKey};
 use crate::infra::configs::JsonShortcutRepository;
 use crate::infra::launcher::Launcher;
 use crate::infra::registry::TauriHotkeyRegistry;
@@ -56,6 +55,13 @@ fn quit_application(app: &tauri::AppHandle) {
 
 fn launched_from_autostart() -> bool {
     std::env::args().any(|arg| arg == AUTOSTART_ARG)
+}
+
+fn on_second_instance(app: &tauri::AppHandle, argv: Vec<String>) {
+    if argv.iter().any(|arg| arg == AUTOSTART_ARG) {
+        return;
+    }
+    show_main_window(app);
 }
 
 fn setup_plugin(app: &tauri::AppHandle) -> tauri::Result<()> {
@@ -130,6 +136,9 @@ fn setup_core(app: &mut tauri::App) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            on_second_instance(app, argv);
+        }))
         .invoke_handler(tauri::generate_handler![
             tauri_command::list_shortcuts,
             tauri_command::create_shortcut,
